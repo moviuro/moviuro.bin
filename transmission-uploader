@@ -54,7 +54,7 @@ if [ -z "$_user" ]; then
       "{\"method\":\"torrent-add\",\"arguments\":\
         {\"paused\":$_paused,\"filename\":\"$_link\"}\
       }" | grep -q '"result":"success"'; then
-      ((_exit_code++))
+      : $((_exit_code+=1))
     fi
   done
 
@@ -69,7 +69,7 @@ else
           "{\"method\":\"torrent-add\",\"arguments\":\
             {\"paused\":$_paused,\"filename\":\"$_link\"}\
           }" | grep -q '"result":"success"'; then
-          ((_exit_code++))
+          : $((_exit_code+=1))
     fi
   done
 fi
