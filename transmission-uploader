@@ -60,11 +60,11 @@ if [ -z "$_user" ]; then
 
 else
 
-  _sessid="$(curl --silent --anyauth --user "$_user:$_pass" "$_endpoint" |
+  _sessid="$(curl --silent --anyauth --user "$_user:$_password" "$_endpoint" |
       sed 's/.*<code>//g;s/<\/code>.*//g')"
 
   for _link in "$@"; do
-    if ! curl --silent --anyauth --user "$_user:$_pass" --header "$_sessid" \
+    if ! curl --silent --anyauth --user "$_user:$_password" --header "$_sessid" \
         "$_endpoint" -d \
           "{\"method\":\"torrent-add\",\"arguments\":\
             {\"paused\":$_paused,\"filename\":\"$_link\"}\
