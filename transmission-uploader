@@ -43,16 +43,19 @@ shift $((OPTIND-1))
 _paused="false"
 
 _endpoint="http://$_server:$_port/transmission/rpc"
+_exit_code=0
 
 if [ -z "$_user" ]; then
 
   _sessid="$(curl --silent "$_endpoint" | sed 's/.*<code>//g;s/<\/code>.*//g')"
 
   for _link in "$@"; do
-    curl --silent --header "$_sessid" "$_endpoint" -d \
+    if ! curl --silent --header "$_sessid" "$_endpoint" -d \
       "{\"method\":\"torrent-add\",\"arguments\":\
         {\"paused\":$_paused,\"filename\":\"$_link\"}\
-      }"
+      }" | grep -q '"result":"success"'; then
+      ((_exit_code++))
+    fi
   done
 
 else
@@ -61,10 +64,14 @@ else
       sed 's/.*<code>//g;s/<\/code>.*//g')"
 
   for _link in "$@"; do
-    curl --silent --anyauth --user "$_user:$_pass" --header "$_sessid" \
+    if ! curl --silent --anyauth --user "$_user:$_pass" --header "$_sessid" \
         "$_endpoint" -d \
           "{\"method\":\"torrent-add\",\"arguments\":\
             {\"paused\":$_paused,\"filename\":\"$_link\"}\
-          }"
+          }" | grep -q '"result":"success"'; then
+          ((_exit_code++))
+    fi
   done
 fi
+
+exit $_exit_code
