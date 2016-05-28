@@ -1,0 +1,70 @@
+#!/bin/sh
+# Original Author: Moviuro
+# Distributed under the terms of the WTFPL.
+#
+# You can find a full copy of the license here:
+#      http://www.wtfpl.net/txt/copying/
+#
+# Inspired from
+# https://blog.flo.cx/2011/02/how-to-open-magnet-links-on-a-remote-transmission-daemon-with-one-click/
+
+_server="127.0.0.1"
+_port="9091"
+
+__usage () {
+  cat << EOF
+Add a torrent or magnet link to your transmission web interface
+
+$0 [-s server] [-p port] [-u user -w password] link
+$0 -h
+
+Default values are:
+  o server: $_server
+  o port:   $_port
+  o user:   <empty>
+  o passwd: <empty>
+EOF
+}
+
+while getopts ":hs:p:u:w:" _opt; do
+  case "$_opt" in
+    h) __usage ; exit 0 ;;
+    p) _port="$OPTARG" ;;
+    s) _server="$OPTARG" ;;
+    u) _user="$OPTARG" ;;
+    w) _password="$OPTARG" ;;
+  esac
+done
+
+shift $((OPTIND-1))
+
+# set true if you want every torrent to be paused initially
+#_paused="true"
+_paused="false"
+
+_endpoint="http://$_server:$_port/transmission/rpc"
+
+if [ -z "$_user" ]; then
+
+  _sessid="$(curl --silent "$_endpoint" | sed 's/.*<code>//g;s/<\/code>.*//g')"
+
+  for _link in "$@"; do
+    curl --silent --header "$_sessid" "$_endpoint" -d \
+      "{\"method\":\"torrent-add\",\"arguments\":\
+        {\"paused\":$_paused,\"filename\":\"$_link\"}\
+      }"
+  done
+
+else
+
+  _sessid="$(curl --silent --anyauth --user "$_user:$_pass" "$_endpoint" |
+      sed 's/.*<code>//g;s/<\/code>.*//g')"
+
+  for _link in "$@"; do
+    curl --silent --anyauth --user "$_user:$_pass" --header "$_sessid" \
+        "$_endpoint" -d \
+          "{\"method\":\"torrent-add\",\"arguments\":\
+            {\"paused\":$_paused,\"filename\":\"$_link\"}\
+          }"
+  done
+fi
