@@ -15,7 +15,7 @@ __usage () {
   cat << EOF
 Add a torrent or magnet link to your transmission web interface
 
-$0 [-s server] [-p port] [-u user -w password] link
+$0 [-s server] [-p port] [-u user -w password] link [link [...]]
 $0 -h
 
 Default values are:
