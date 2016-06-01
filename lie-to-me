@@ -11,17 +11,26 @@ set -ex
 
 _temp="/tmp/$0"
 _target="${1:-127.0.0.1}"
+_format="unbound"
+_output_file="$0.out"
 
 if [ -e "$_temp" ]; then
   rm -rf "$_temp"
 fi
 
 __add_hosts () {
+  printf '# Original file at %s\n' "$1" >> "$_temp"
   curl -s "$1" | awk "/^$2 / "'{ print $2 }' >> "$_temp"
 }
 
 __add_simple () {
+  printf '# Original file at %s\n' "$1" >> "$_temp"
   curl -s "$1" | { grep -e '^[^\#]' || continue; } >> "$_temp"
+}
+
+__to_unix () {
+  tr -d '\r' < "$_temp" > "$_temp".2
+  mv "$_temp".2 "$_temp"
 }
 
 __add_simple "https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt"
@@ -48,18 +57,26 @@ __add_hosts "https://zeustracker.abuse.ch/blocklist.php?download=hostfile" \
 __add_hosts "https://www.malwaredomainlist.com/hostslist/hosts.txt" \
   '127\.0\.0\.1'
 
-__sort_and_print () {
-  for _host in $(sort -u "$_temp"); do
-    printf 'local-zone: "%s" redirect\n' "$_host"
-    printf 'local-data: "%s A %s"\n' "$_host" "$_target"
-  done
-}
+__to_unix
 
-__cleanup () {
-  tr -d '\r' < "$_temp" > "$_temp".2
-  mv "$_temp".2 "$_temp"
-}
-
-__cleanup
-__sort_and_print
+{ case "$_format" in
+  "unbound")
+    for _host in $(sort -u "$_temp"); do
+      printf 'local-zone: "%s" redirect\n' "$_host"
+      printf 'local-data: "%s A %s"\n' "$_host" "$_target"
+    done
+  ;;
+  "none")
+    for _host in $(sort -u "$_temp"); do
+      printf '%\n'
+    done
+  ;;
+  "bind")
+  ;;
+  "hosts")
+    for _host in $(sort -u "$_temp"); do
+      printf '%s %s\n' "$_target" "$_host"
+    done
+  ;;
+esac } > "$_output_file"
 
