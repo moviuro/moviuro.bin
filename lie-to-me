@@ -10,9 +10,39 @@
 set -ex
 
 _temp="/tmp/$0"
-_target="${1:-127.0.0.1}"
+_target=127.0.0.1
 _format="unbound"
 _output_file="$0.out"
+
+__usage () {
+  cat << EOF
+$0 [-t temp] [-f format] [-o out] [target]
+$0 -h
+
+Create a lying DNS file for the specified format.
+  o -t temp: specify a temporary file to work on.
+    Default: $_temp
+  o -f format: specify an output format.
+    Default: $_format
+  o -o out: specify an output file.
+    Default: $_output_file
+  o target: specify the target
+    Default: $_target
+EOF
+}
+
+while getopts ":t:f:o:h" _opt; do
+  case "$_opt" in
+    h) __usage; exit 0;;
+    t) _temp="$OPTARG";;
+    f) _format="$OPTARG";;
+    o) _output_file="$OPTARG";;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
+_target="${1:-"$_target"}"
 
 if [ -e "$_temp" ]; then
   rm -rf "$_temp"
