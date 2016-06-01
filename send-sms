@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Original Author: Moviuro
+# Distributed under the terms of the WTFPL.
+#
+# You can find a full copy of the license here:
+#      http://www.wtfpl.net/txt/copying/
+
+# This script sends an SMS using the Free Mobile API, see
+# https://www.freenews.fr/freenews-edition-nationale-299/free-mobile-170/nouvelle-option-notifications-par-sms-chez-free-mobile-14817
+
+set -ex
+
+if [ -r "$HOME/.config/$0.rc" ]; then
+  . "$HOME/.config/$0.rc"
+fi
+
+# read arguments
+while getopts ":u:p:" _opt; do
+  case "$_opt" in
+    u) user="$OPTARG" ;;
+    p) pass="$OPTARG" ;;
+  esac
+done
+
+shift $((OPTIND-1))
+
+if [ -z "$user" -o -z "$pass" -o -z "$1" ]; then
+  printf '%s\n' "A parameter is missing: user, pass or message" >&2
+  exit 1
+fi
+
+curl -G https://smsapi.free-mobile.fr/sendmsg -d "user=$user" \
+  -d "pass=$pass" --data-urlencode "msg=$(hostname) message: $1"
