@@ -109,6 +109,10 @@ __to_unix
     done
   ;;
   "bind")
+    echo "I do NOT include the headers in $_output_file" >&2
+    for _host in $(sort -u "$_temp"); do
+      printf '%s. IN A %s\n' "$_host" "$_target"
+    done
   ;;
   "hosts")
     for _host in $(sort -u "$_temp"); do
