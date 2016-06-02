@@ -12,7 +12,6 @@ set -ex
 _temp="/tmp/$0"
 _target=127.0.0.1
 _format="unbound"
-_output_file="$0.out"
 
 __usage () {
   cat << EOF
@@ -25,7 +24,7 @@ Create a lying DNS file for the specified format.
   o -f format: specify an output format.
     Default: $_format
   o -o out: specify an output file.
-    Default: $_output_file
+    Default: <stdout>
   o target: specify the target
     Default: $_target
 EOF
@@ -61,6 +60,14 @@ __add_simple () {
 __to_unix () {
   tr -d '\r' < "$_temp" > "$_temp".2
   mv "$_temp".2 "$_temp"
+}
+
+__to_output () {
+  if [ -z "$_output_file" ]; then
+    cat -
+  else
+    > "$_output_file"
+  fi
 }
 
 __add_simple "https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt"
@@ -108,5 +115,5 @@ __to_unix
       printf '%s %s\n' "$_target" "$_host"
     done
   ;;
-esac } > "$_output_file"
+esac } | __to_output
 
