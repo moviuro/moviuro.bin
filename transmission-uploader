@@ -8,7 +8,7 @@
 # Inspired from
 # https://blog.flo.cx/2011/02/how-to-open-magnet-links-on-a-remote-transmission-daemon-with-one-click/
 
-_server="127.0.0.1"
+_server="http://127.0.0.1"
 _port="9091"
 
 __usage () {
@@ -42,7 +42,7 @@ shift $((OPTIND-1))
 #_paused="true"
 _paused="false"
 
-_endpoint="http://$_server:$_port/transmission/rpc"
+_endpoint="$_server:$_port/transmission/rpc"
 _exit_code=0
 
 if [ -z "$_user" ]; then
