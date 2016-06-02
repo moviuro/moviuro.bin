@@ -63,7 +63,8 @@ __add_simple () {
 
 __to_unix () {
   tr -d '\r' < "$_temp" > "$_temp".2
-  mv "$_temp".2 "$_temp"
+  tr '[:upper:]' '[:lower:]' < "$_temp".2 | grep -v ' ' > "$_temp"
+  rm "$_temp".2
 }
 
 __to_output () {
