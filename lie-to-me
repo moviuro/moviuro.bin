@@ -99,6 +99,35 @@ __to_output () {
   fi
 }
 
+# We define the __to_format function that properly prints the host redirection
+# in the specified form.
+# Usage:   __to_format "host"        "target"
+# Example: __to_format "example.com" "10.10.10.10"
+case "$_format" in
+  "unbound")
+    __to_format () {
+      printf 'local-zone: "%s" redirect\n' "$1"
+      printf 'local-data: "%s A %s"\n' "$1" "$2"
+    }
+  ;;
+  "none")
+    __to_format () {
+      printf '%s\n' "$1"
+    }
+  ;;
+  "bind")
+    echo "I do NOT include the headers in $_output_file" >&2
+    __to_format () {
+      printf '%s. IN A %s\n' "$1" "$2"
+    }
+  ;;
+  "hosts")
+    __to_format () {
+      printf '%s %s\n' "$2" "$1"
+    }
+  ;;
+esac
+
 __add_simple "https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt"
 __add_simple "https://ransomwaretracker.abuse.ch/downloads/CW_C2_DOMBL.txt"
 __add_simple "https://ransomwaretracker.abuse.ch/downloads/CW_PS_DOMBL.txt"
@@ -125,31 +154,12 @@ __add_hosts "https://www.malwaredomainlist.com/hostslist/hosts.txt" \
 
 __to_unix
 
-{ cat "$_temp_ack"
-  case "$_format" in
-  "unbound")
-    while IFS= read -r _host; do
-      printf 'local-zone: "%s" redirect\n' "$_host"
-      printf 'local-data: "%s A %s"\n' "$_host" "$_target"
-    done
-  ;;
-  "none")
-    while IFS= read -r _host; do
-      printf '%s\n' "$_host"
-    done
-  ;;
-  "bind")
-    echo "I do NOT include the headers in $_output_file" >&2
-    while IFS= read -r _host; do
-      printf '%s. IN A %s\n' "$_host" "$_target"
-    done
-  ;;
-  "hosts")
-    while IFS= read -r _host; do
-      printf '%s %s\n' "$_target" "$_host"
-    done
-  ;;
-esac } < "$_temp" | __to_output
+{ # We print the acks first
+  cat "$_temp_ack"
+  while IFS= read -r _host; do
+    __to_format "$_host" "$_target"
+  done
+} < "$_temp" | __to_output
 
 __cleanup
 
