@@ -135,7 +135,7 @@ __to_unix
   ;;
   "none")
     for _host in $(< "$_temp"); do
-      printf '%\n'
+      printf '%s\n' "$_host"
     done
   ;;
   "bind")
