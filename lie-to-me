@@ -79,9 +79,16 @@ __add_simple () {
 }
 
 __to_unix () {
-  tr -d '\r' < "$_temp" > "$_temp".2
-  tr '[:upper:]' '[:lower:]' < "$_temp".2 | grep -v ' ' > "$_temp"
-  rm "$_temp".2
+  # We remove weird characters
+  tr -d '\r' < "$_temp" |
+  # We cast everything to lower-case
+  tr '[:upper:]' '[:lower:]' |
+  # We ignore lines with spaces
+  grep -v ' ' |
+  # We sort the file
+  sort -u > "$_temp".2
+  # We replace the original file
+  mv "$_temp".2 "$_temp"
 }
 
 __to_output () {
@@ -121,24 +128,24 @@ __to_unix
 { cat "$_temp_ack"
   case "$_format" in
   "unbound")
-    for _host in $(sort -u "$_temp"); do
+    for _host in $(< "$_temp"); do
       printf 'local-zone: "%s" redirect\n' "$_host"
       printf 'local-data: "%s A %s"\n' "$_host" "$_target"
     done
   ;;
   "none")
-    for _host in $(sort -u "$_temp"); do
+    for _host in $(< "$_temp"); do
       printf '%\n'
     done
   ;;
   "bind")
     echo "I do NOT include the headers in $_output_file" >&2
-    for _host in $(sort -u "$_temp"); do
+    for _host in $(< "$_temp"); do
       printf '%s. IN A %s\n' "$_host" "$_target"
     done
   ;;
   "hosts")
-    for _host in $(sort -u "$_temp"); do
+    for _host in $(< "$_temp"); do
       printf '%s %s\n' "$_target" "$_host"
     done
   ;;
