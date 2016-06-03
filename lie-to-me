@@ -19,6 +19,11 @@ $0 -h
 
 Create a lying DNS file for the specified format.
   o -f format: specify an output format.
+    Supported formats are:
+      - unbound
+      - bind
+      - hosts (see hosts(5))
+      - none  (one hostname per line)
     Default: $_format
   o -o out: specify an output file.
     Default: <stdout>
