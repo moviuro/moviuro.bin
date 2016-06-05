@@ -43,11 +43,11 @@ done
 
 shift "$((OPTIND-1))"
 
-if command -v curl 2>&1 >/dev/null; then
+if command -v curl >/dev/null 2>&1; then
   __download () {
     curl -s "$1"
   }
-elif command -v fetch 2>&1 >/dev/null; then
+elif command -v fetch >/dev/null 2>&1; then
   __download () {
     fetch -q -o - "$1"
   }
@@ -66,7 +66,7 @@ __cleanup () {
   [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
 }
 
-trap __cleanup SIGINT SIGTERM
+trap __cleanup INT TERM
 
 __add_hosts () {
   printf '# Original file at %s\n' "$1" >> "$_temp_ack"
@@ -75,7 +75,7 @@ __add_hosts () {
 
 __add_simple () {
   printf '# Original file at %s\n' "$1" >> "$_temp_ack"
-  __download "$1" | { grep -e '^[^\#]' || continue; } >> "$_temp"
+  __download "$1" | { grep -e '^[^\#]' || :; } >> "$_temp"
 }
 
 __to_unix () {
