@@ -9,7 +9,7 @@
 
 set -e
 
-_target=127.0.0.1
+_target="127.0.0.1"
 _format="unbound"
 
 __usage () {
