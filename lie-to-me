@@ -7,7 +7,7 @@
 #      http://www.wtfpl.net/txt/copying/
 #
 
-set -ex
+set -e
 
 _target=127.0.0.1
 _format="unbound"
