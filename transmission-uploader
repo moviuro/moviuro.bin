@@ -10,6 +10,11 @@
 
 _server="http://127.0.0.1"
 _port="9091"
+_myname="$(basename "$0")"
+
+if [ -r "$HOME/.config/$_myname.rc" ]; then
+  . "$HOME/.config/$_myname.rc"
+fi
 
 __usage () {
   cat << EOF
