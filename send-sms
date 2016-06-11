@@ -11,8 +11,10 @@
 
 set -ex
 
-if [ -r "$HOME/.config/$0.rc" ]; then
-  . "$HOME/.config/$0.rc"
+_myname="$(basename "$0")"
+
+if [ -r "$HOME/.config/$_myname.rc" ]; then
+  . "$HOME/.config/$_myname.rc"
 fi
 
 # read arguments
