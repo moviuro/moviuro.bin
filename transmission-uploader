@@ -38,10 +38,15 @@ while getopts ":hs:p:u:w:" _opt; do
     s) _server="$OPTARG" ;;
     u) _user="$OPTARG" ;;
     w) _password="$OPTARG" ;;
+    *) __usage >&2 ; exit 1 ;;
   esac
 done
 
 shift $((OPTIND-1))
+
+if [ -z "$1" ]; then
+  __usage >&2 ; exit 1
+fi
 
 # set true if you want every torrent to be paused initially
 #_paused="true"
