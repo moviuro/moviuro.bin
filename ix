@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# Usage:
+# $ ix ./file
+# $ ix some command
+# $ some command | ix
+
+# The explanation of the following code is left as an exercise to the user
+
 __ix () {
     [ -z "$1" -o -r "$1" ] && curl -F "f:1=<${1:--}" ix.io ||
       printf '$%s\n\n%s' "$*" "$("$@")" 2>&1 | __ix
