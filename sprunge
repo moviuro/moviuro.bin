@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Usage:
+# $ sprunge ./file
+# $ sprunge some command
+# $ some command | sprunge
+
+# The explanation of the following code is left as an exercise to the user
+
+__sprunge () {
+    [ -z "$1" -o -r "$1" ] && curl -F "sprunge=<${1:--}" sprunge.us ||
+      printf '$%s\n\n%s' "$*" "$("$@")" 2>&1 | __sprunge
+}
+
+__sprunge "$@"
