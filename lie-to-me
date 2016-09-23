@@ -83,8 +83,8 @@ __to_unix () {
   tr -d '\r' < "$_temp" |
   # We cast everything to lower-case
   tr '[:upper:]' '[:lower:]' |
-  # We ignore lines with spaces
-  grep -v ' ' |
+  # We ignore lines with spaces or empty lines
+  grep -vE '( |^$)' |
   # We sort the file
   sort -u > "$_temp".2
   # We replace the original file
