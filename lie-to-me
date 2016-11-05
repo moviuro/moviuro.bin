@@ -43,13 +43,20 @@ done
 
 shift "$((OPTIND-1))"
 
+# first choice is curl(1), should be OK for Linux
 if command -v curl >/dev/null 2>&1; then
   __download () {
     curl -s "$1"
   }
+# second is fetch(1), for FreeBSD
 elif command -v fetch >/dev/null 2>&1; then
   __download () {
     fetch -q -o - "$1"
+  }
+# last comes ftp(1), which does far more than its name implies (OpenBSD only)
+elif [ "$(uname -s)" = OpenBSD ] && command -v ftp >/dev/null 2>&1; then
+  __download () {
+    ftp -o - "$1"
   }
 else
   printf '%s\n' "Oh no! You don't seem to have curl(1) or fetch(1)" >&2
