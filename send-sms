@@ -9,21 +9,22 @@
 # This script sends an SMS using the Free Mobile API, see
 # https://www.freenews.fr/freenews-edition-nationale-299/free-mobile-170/nouvelle-option-notifications-par-sms-chez-free-mobile-14817
 
-set -ex
+set -e
+
+# read arguments
+while getopts ":u:p:v" _opt; do
+  case "$_opt" in
+    u) user="$OPTARG" ;;
+    p) pass="$OPTARG" ;;
+    v) set -x         ;;
+  esac
+done
 
 _myname="$(basename "$0")"
 
 if [ -r "$HOME/.config/$_myname.rc" ]; then
   . "$HOME/.config/$_myname.rc"
 fi
-
-# read arguments
-while getopts ":u:p:" _opt; do
-  case "$_opt" in
-    u) user="$OPTARG" ;;
-    p) pass="$OPTARG" ;;
-  esac
-done
 
 shift $((OPTIND-1))
 
