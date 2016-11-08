@@ -27,10 +27,17 @@ done
 
 shift $((OPTIND-1))
 
-if [ -z "$user" -o -z "$pass" -o -z "$1" ]; then
-  printf '%s\n' "A parameter is missing: user, pass or message" >&2
+if [ -z "$user" -o -z "$pass" ]; then
+  printf '%s\n' "A parameter is missing: user or pass" >&2
   exit 1
 fi
 
-curl -G https://smsapi.free-mobile.fr/sendmsg -d "user=$user" \
-  -d "pass=$pass" --data-urlencode "msg=$(hostname) message: $1"
+{
+  printf '%s\n' "$(hostname) message:"
+  if [ -z "$1" ]; then
+    cat -
+  else
+    echo "$1"
+  fi
+} | curl -G https://smsapi.free-mobile.fr/sendmsg -d "user=$user" \
+    -d "pass=$pass" --data-urlencode msg@-
