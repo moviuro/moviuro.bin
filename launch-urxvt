@@ -13,11 +13,8 @@ _profile="$1"
 _file=~/.config/X/Xresources."$_profile"
 
 if [ -f "$_file" ]; then
-  xrdb "$_file"
   command="$(head -n1 "$_file" | sed -n "s/^!\\s//p;")"
-  # gotta love race conditions <3
-  urxvt -e sh -c "$command" &
-  sleep 0.1 && xrdb ~/.Xresources
+  XENVIRONMENT="$_file" urxvt -e sh -c "$command" &
 else
   exit 1
 fi
