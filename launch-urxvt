@@ -13,7 +13,7 @@ _profile="$1"
 _file=~/.config/X/Xresources."$_profile"
 
 if [ -f "$_file" ]; then
-  command="$(head -n1 "$_file" | sed -n "s/^!\\s//p;")"
+  command="$(sed 's/^![[:blank:]]*//;q' "$_file")"
   XENVIRONMENT="$_file" urxvt -e sh -c "$command" &
 else
   exit 1
