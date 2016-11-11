@@ -25,7 +25,7 @@ _lockfile="$_temp_dir/scrot.png"
 
 scrot "$_lockfile"
 
-case "$((RANDOM % 2))" in
+case "$(($$ % 2))" in
   # Blurring the picture
   0) convert "$_lockfile" -blur 0x4 "$_lockfile" ;;
   # Pixelation
