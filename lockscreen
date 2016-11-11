@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# Locks the screen after taking a screenshot and making it unreadable
+
+__check() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "missing $1" >&2
+    exit 1
+  fi
+}
+
+__check i3lock
+__check convert
+__check scrot
+
+_temp_dir="$(mktemp -d -t "$(basename "$0").XXXXXX")"
+
+__cleanup() {
+  [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
+}
+
+trap __cleanup INT TERM
+
+_lockfile="$_temp_dir/scrot.png"
+
+scrot "$_lockfile"
+
+case "$((RANDOM % 2))" in
+  # Blurring the picture
+  0) convert "$_lockfile" -blur 0x4 "$_lockfile" ;;
+  # Pixelation
+  1) convert "$_lockfile" -filter point -resize 10% -resize 1000% "$_lockfile" ;;
+esac
+
+i3lock --24 -i "$_lockfile" || # lixxia's fork
+  i3lock -i "$_lockfile"
+
+__cleanup
+
