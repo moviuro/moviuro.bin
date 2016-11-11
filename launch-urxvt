@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Runs urxvt after loading a specific Xresources file.
+#
+# The command that is run is the comment on the first line of the
+# ~/.config/X/Xresources."$1" file. For example:
+#
+# ! ssh myserver.example.com
+# or
+# ! su - -c "tmux a"
+
+_profile="$1"
+_file=~/.config/X/Xresources."$_profile"
+
+if [ -f "$_file" ]; then
+  xrdb "$_file"
+  command="$(head -n1 "$_file" | sed -n "s/^!\\s//p;")"
+  # gotta love race conditions <3
+  urxvt -e sh -c "$command" &
+  sleep 0.1 && xrdb ~/.Xresources
+else
+  exit 1
+fi
