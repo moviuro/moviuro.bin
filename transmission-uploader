@@ -28,6 +28,9 @@ Default values are:
   o port:   $_port
   o user:   <empty>
   o passwd: <empty>
+
+-h: print this help text
+-v: be verbose (set -x)
 EOF
 }
 
