@@ -20,7 +20,7 @@ __usage () {
   cat << EOF
 Add a torrent or magnet link to your transmission web interface
 
-$0 [-s server] [-p port] [-u user -w password] link [link [...]]
+$0 [-s server] [-p port] [-u user -w password] [-v] link [link [...]]
 $0 -h
 
 Default values are:
@@ -31,11 +31,13 @@ Default values are:
 EOF
 }
 
+while getopts ":hs:p:u:vw:" _opt; do
   case "$_opt" in
     h) __usage ; exit 0     ;;
     p) _port="$OPTARG"      ;;
     s) _server="$OPTARG"    ;;
     u) _user="$OPTARG"      ;;
+    v) set -x               ;;
     w) _password="$OPTARG"  ;;
     *) __usage >&2 ; exit 1 ;;
   esac
