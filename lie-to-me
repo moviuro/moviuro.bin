@@ -14,10 +14,11 @@ _format="unbound"
 
 __usage () {
   cat << EOF
-$0 [-f format] [-o out] [-t target]
+$0 [-d] [-f format] [-o out] [-t target]
 $0 -h
 
 Create a lying DNS file for the specified format.
+  o -d: enable debug (set -x)
   o -f format: specify an output format.
     Supported formats are:
       - unbound
