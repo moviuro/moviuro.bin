@@ -151,6 +151,8 @@ __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.t
 
 __add_hosts "http://someonewhocares.org/hosts/hosts" '127\.0\.0\.1'
 __add_hosts "http://winhelp2002.mvps.org/hosts.txt" '0\.0\.0\.0'
+__add_hosts "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" \
+  '0\.0\.0\.0'
 __add_hosts \
   "http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&mimetype=plaintext" \
   '127\.0\.0\.1'
