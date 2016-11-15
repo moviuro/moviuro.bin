@@ -33,13 +33,14 @@ Create a lying DNS file for the specified format.
 EOF
 }
 
-while getopts ":t:f:o:hd" _opt; do
+while getopts ":df:ho:t:" _opt; do
   case "$_opt" in
-    d) set -x;;
-    h) __usage; exit 0;;
-    t) _target="$OPTARG";;
-    f) _format="$OPTARG";;
-    o) _output_file="$OPTARG";;
+    d) set -x                 ;;
+    f) _format="$OPTARG"      ;;
+    h) __usage; exit 0        ;;
+    o) _output_file="$OPTARG" ;;
+    t) _target="$OPTARG"      ;;
+    *) __usage >&2 ; exit 1   ;;
   esac
 done
 
