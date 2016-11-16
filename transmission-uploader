@@ -1,10 +1,5 @@
 #!/bin/sh
-# Original Author: Moviuro
-# Distributed under the terms of the WTFPL.
-#
-# You can find a full copy of the license here:
-#      http://www.wtfpl.net/txt/copying/
-#
+
 # Inspired from
 # https://blog.flo.cx/2011/02/how-to-open-magnet-links-on-a-remote-transmission-daemon-with-one-click/
 

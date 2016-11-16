@@ -1,10 +1,4 @@
 #!/bin/sh
-#
-# Original Author: Moviuro
-# Distributed under the terms of the WTFPL.
-#
-# You can find a full copy of the license here:
-#      http://www.wtfpl.net/txt/copying/
 
 # This script sends an SMS using the Free Mobile API, see
 # https://www.freenews.fr/freenews-edition-nationale-299/free-mobile-170/nouvelle-option-notifications-par-sms-chez-free-mobile-14817
