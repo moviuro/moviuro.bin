@@ -135,7 +135,14 @@ case "$_format" in
   ;;
   "hosts")
     __to_format () {
-      printf '%s %s\n' "$2" "$1"
+      printf '%s  %s\n' "$2" "$1"
+    }
+    __headers () {
+      printf '%s\n' "# /etc/hosts: static lookup table for host names"
+      printf '\n'
+      printf '%s  %s  %s\n' "127.0.0.1" "localhost.localdomain" "localhost"
+      printf '%s  %s  %s\n' "::1" "localhost.localdomain" "localhost"
+      printf '\n'
     }
   ;;
 esac
