@@ -107,6 +107,10 @@ __to_output () {
   fi
 }
 
+__headers () {
+  :
+}
+
 # We define the __to_format function that properly prints the host redirection
 # in the specified form.
 # Usage:   __to_format "host"        "target"
@@ -164,7 +168,9 @@ __add_hosts "https://www.malwaredomainlist.com/hostslist/hosts.txt" \
 
 __to_unix
 
-{ # We print the acks first
+{ # We print the headers too, if we know how to do it
+  __headers
+  # We print the acks first
   cat "$_temp_ack"
   while IFS= read -r _host; do
     __to_format "$_host" "$_target"
