@@ -14,7 +14,7 @@ Create a list of known-bad IPs
 EOF
 }
 
-while getopts ":df:ho:t:" _opt; do
+while getopts ":dho:" _opt; do
   case "$_opt" in
     d) set -x                 ;;
     h) __usage; exit 0        ;;
