@@ -103,6 +103,12 @@ __to_output () {
   if [ -z "$_output_file" ]; then
     cat -
   else
+    if [ -e "$_output_file" ]; then
+      # just in case something goes wrong
+      # I wrote that script though. It shouldn't go wrong.
+      # Right...?
+      cp "$_output_file" "$_output_file".bak
+    fi
     cat - > "$_output_file"
   fi
 }
