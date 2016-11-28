@@ -1,0 +1,109 @@
+#!/bin/sh
+
+set -e
+
+__usage () {
+  cat << EOF
+$0 [-d] [-o out]
+$0 -h
+
+Create a list of known-bad IPs for the specified format.
+  o -d: enable debug (set -x)
+  o -o out: specify an output file.
+    Default: <stdout>
+EOF
+}
+
+while getopts ":df:ho:t:" _opt; do
+  case "$_opt" in
+    d) set -x                 ;;
+    h) __usage; exit 0        ;;
+    o) _output_file="$OPTARG" ;;
+    *) __usage >&2 ; exit 1   ;;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
+true() {
+  :
+}
+
+# first choice is curl(1), should be OK for Linux
+if command -v curl >/dev/null 2>&1; then
+  __download () {
+    curl -s "$1"
+  }
+# second is fetch(1), for FreeBSD
+elif command -v fetch >/dev/null 2>&1; then
+  __download () {
+    fetch -q -o - "$1"
+  }
+# last comes ftp(1), which does far more than its name implies (OpenBSD only)
+elif [ "$(uname -s)" = OpenBSD ] && command -v ftp >/dev/null 2>&1; then
+  __download () {
+    ftp -o - "$1"
+  }
+else
+  printf '%s\n' "Oh no! You don't seem to have curl(1) or fetch(1)" >&2
+  printf '%s\n' "I'm cowardly exiting" >&2
+  exit 4
+fi
+
+# If we're here, we're actually going to do something
+_temp_dir="$(mktemp -d -t "$(basename "$0").XXXXXX")"
+_temp="$_temp_dir/badips"
+_temp_ack="$_temp_dir/acks"
+
+__cleanup () {
+  [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
+}
+
+trap __cleanup INT TERM
+
+__add () {
+  printf '# Original file at %s\n' "$1" >> "$_temp_ack"
+  # We only want the lines that are not comments, and we don't fail on empty files
+  __download "$1" | grep -e '^[^\#$]' >> "$_temp" || true
+}
+
+__to_unix () {
+  # We remove weird characters
+  tr -d '\r' < "$_temp" |
+  # We cast everything to lower-case
+  tr '[:upper:]' '[:lower:]' |
+  # We ignore lines with spaces or empty lines
+  grep -vE '( |^$)' |
+  # We sort the file
+  sort -un > "$_temp".2
+  # We replace the original file
+  mv "$_temp".2 "$_temp"
+}
+
+__to_output () {
+  if [ -z "$_output_file" ]; then
+    cat -
+  else
+    if [ -e "$_output_file" ]; then
+      # just in case something goes wrong
+      # I wrote that script though. It shouldn't go wrong.
+      # Right...?
+      cp "$_output_file" "$_output_file".bak
+    fi
+    cat - > "$_output_file"
+  fi
+}
+
+__add "https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt"
+__add "https://zeustracker.abuse.ch/blocklist.php?download=badips"
+__add "https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist"
+__add "https://www.binarydefense.com/banlist.txt"
+__add "https://www.malwaredomainlist.com/hostslist/ip.txt"
+
+__to_unix
+
+# We print the acks first
+cat "$_temp_ack" "$_temp" | __to_output
+
+__cleanup
+
