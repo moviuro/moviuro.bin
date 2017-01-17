@@ -1,6 +1,7 @@
 #!/bin/sh
 
 #set -x
+set -e
 
 : "${_src_dir="/usr/src"}"
 : "${_tgz_dir="/usr/rel"}"
@@ -25,6 +26,10 @@ update will: cd to ${_src_dir};
 EOH
 }
 
+__status () {
+  printf ':: %s\n' "$1"
+}
+
 case "$1" in
   -h|help)
     __usage ; exit 0
@@ -41,10 +46,6 @@ case "$1" in
         "https://mirrors.evowise.com/pub/OpenBSD/$(uname -r)/SHA256" >&2
       exit 3
     fi
-
-    __status () {
-      printf ':: %s\n' "$1"
-    }
 
     while ! sha256 -C "$_sha" "$_src_tgz"; do
       __status "Downloading $_src_tgz"
@@ -65,12 +66,11 @@ case "$1" in
     tar xzf "$_sys_tgz" -C "$_src_dir"
   ;;
   update)
-    cd "$_src_dir" || exit 4
+    cd "$_src_dir"
     # cvs will fail if there is no CVSROOT specified
     # example: CVSROOT=anoncvs@anoncvs.fr.openbsd.org:/cvs <command>
     # list of CVSROOTs that could work: https://www.openbsd.org/anoncvs.html#CVSROOT
     cvs -q up -rOPENBSD_"$(uname -r | sed 's/\./_/')" -Pd
-    exit $?
   ;;
   *)
     __usage >&2 ; exit 5
