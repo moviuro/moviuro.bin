@@ -67,7 +67,9 @@ case "$1" in
       __status "Downloading $_sys_tgz"
       ftp -o "$_sys_tgz" "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/sys.tar.gz"
     done
-
+  ;;
+  deflate)
+    cd $_tgz_dir
     __status "Verifying $_src_tgz and $_sys_tgz"
     signify -C -q -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -x "$_sha_sig" "$_src_tgz"
     signify -C -q -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -x "$_sha_sig" "$_sys_tgz"
