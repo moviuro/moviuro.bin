@@ -18,18 +18,23 @@ __usage () {
 Update or initialize ${_src_dir} with OpenBSD's source.
 
 $0 -h|help
-$0 init
-$0 update
+$0 init [rel]
+$0 deflate [rel]
+$0 update [rel]
 
-init will: check for presence of the src and sys archives in ${_tgz_dir};
-           validate them (sha256);
+init [rel] will:
+           check for presence of the $_rel src and sys archives in ${_tgz_dir};
+           validate them (signify);
+
+deflate [rel] will:
            clean ${_src_dir};
-           decompress the tarballs;
+           decompress the $_rel tarballs;
 
-update will: cd to ${_src_dir};
-             launch the CVS command to follow -stable.
-         >>  Don't forget to set \$CVSROOT
-             $CVSROOT
+update [rel] will:
+           cd to ${_src_dir};
+           launch the CVS command to follow -stable (OPENBSD_$_rel_underscore).
+       >>  Don't forget to set \$CVSROOT
+           $CVSROOT
 EOH
 }
 
