@@ -42,6 +42,12 @@ __status () {
   printf ':: %s\n' "$1"
 }
 
+__verify () {
+  __status "Verifying $1"
+  signify -C -q -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -x \
+   "$_sha_sig" "$1"
+}
+
 case "$1" in
   -h|help)
     __usage ; exit 0
@@ -63,9 +69,7 @@ case "$1" in
      -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -m "${_sha}"
 
     for _tgz in "${_src_tgz}" "${_sys_tgz}"; do
-      __status "Verifying $_tgz"
-      while ! signify -C -q -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" \
-       -x "$_sha_sig" "$_tgz"; do
+      while ! __verify "$_tgz"; do
         __status "Downloading $_src_tgz"
         ftp -o "$_tgz" \
          "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_tgz}" >/dev/null
@@ -74,9 +78,8 @@ case "$1" in
   ;;
   deflate)
     cd $_tgz_dir
-    __status "Verifying $_src_tgz and $_sys_tgz"
-    signify -C -q -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -x "$_sha_sig" "$_src_tgz"
-    signify -C -q -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -x "$_sha_sig" "$_sys_tgz"
+    __verify "$_src_tgz"
+    __verify "$_sys_tgz"
     __status "Cleaning up $_src_dir, this might take a while"
     rm -r "${_src_dir:?}"/*
     __status "Deflating $_src_tgz"
