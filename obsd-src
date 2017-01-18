@@ -49,18 +49,18 @@ case "$1" in
   init)
     cd $_tgz_dir
 
+    # We download both SHA256 and SHA256.sig to avoid endless loops if we get
+    #  a broken SHA256.sig
+    for _h in "${_sha}" "${_sha_sig}"; do
+      __status "Downloading $_h"
+      ftp -o "$_h" \
+       "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_h}" >/dev/null
+    done
+
     # Check SHA256 against known signature keys (on current system)
     __status "Checking ${_sha} and ${_sha_sig}"
-    while ! signify -V -q -x "${_sha_sig}" \
-     -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -m "${_sha}"; do
-      # We download both SHA256 and SHA256.sig to avoid endless loops if we get
-      #  a broken SHA256.sig
-      for _h in "${_sha}" "${_sha_sig}"; do
-        __status "Downloading $_h"
-        ftp -o "$_h" \
-         "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_h}" >/dev/null
-      done
-    done
+    signify -V -q -x "${_sha_sig}" \
+     -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -m "${_sha}"
 
     for _tgz in "${_src_tgz}" "${_sys_tgz}"; do
       __status "Verifying $_tgz"
