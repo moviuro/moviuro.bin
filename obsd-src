@@ -55,6 +55,9 @@ case "$1" in
   init)
     cd $_tgz_dir
 
+    : > "${_sha}"
+    : > "${_sha_sig}"
+
     # We download both SHA256 and SHA256.sig to avoid endless loops if we get
     #  a broken SHA256.sig
     for _h in "${_sha}" "${_sha_sig}"; do

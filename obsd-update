@@ -23,6 +23,10 @@ __verify () {
 case "$1" in 
   fetch)
     cd "$_tgz_dir"
+
+    : > "${_sha}"
+    : > "${_sha_sig}"
+
     # We download both SHA256.sig and SHA256 as base of truth
     for _h in "${_sha}" "${_sha_sig}"; do
       __status "Downloading $_h"
