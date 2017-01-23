@@ -27,7 +27,26 @@ __dl () {
    >/dev/null
 }
 
-case "$1" in 
+__usage () {
+  cat << EOH
+Initialize ${_tgz_dir} with OpenBSD's RELEASE tarballs for ${_rel}
+
+$0 -h|help
+$0 fetch [release]
+
+fetch [release] will:
+  * Download ${_sha} and ${_sha_sig} from the mirrors for [release]
+  * Validate them with signify(1)
+  * Download the base, game, comp, man tarballs
+  * Download the bsd bsd.mp bsd.rd tarballs
+  * Validate everything with signify(1)
+EOH
+}
+
+case "$1" in
+  -h|help)
+    __usage
+  ;;
   fetch)
     cd "$_tgz_dir"
 
@@ -53,5 +72,9 @@ case "$1" in
     done
 
     __status "Now: https://www.openbsd.org/faq/upgrade${_rel_nodot}.html"
+  ;;
+  *)
+    __usage >&2
+    exit 5
   ;;
 esac
