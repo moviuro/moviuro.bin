@@ -20,6 +20,13 @@ __verify () {
    "$_sha_sig" "$1"
 }
 
+__dl () {
+  __status "Downloading $1 for ${_rel} ${_arch}"
+  ftp -o "$1" \
+   "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_arch}/$1" \
+   >/dev/null
+}
+
 case "$1" in 
   fetch)
     cd "$_tgz_dir"
@@ -29,10 +36,7 @@ case "$1" in
 
     # We download both SHA256.sig and SHA256 as base of truth
     for _h in "${_sha}" "${_sha_sig}"; do
-      __status "Downloading $_h for $_arc"
-      ftp -o "$_h" \
-       "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_arch}/${_h}" \
-       >/dev/null
+      __dl "$_h"
     done
 
     # Check SHA256 against known signature keys (on current system)
@@ -44,10 +48,7 @@ case "$1" in
     for _f in base${_rel_nodot}.tgz game${_rel_nodot}.tgz \
      comp${_rel_nodot}.tgz man${_rel_nodot}.tgz bsd bsd.mp bsd.rd; do
       while ! __verify "$_f"; do
-        __status "Downloading $_f"
-        ftp -o "$_f" \
-         "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_arch}/${_f}" \
-         >/dev/null
+        __dl "$_f"
       done
     done
 

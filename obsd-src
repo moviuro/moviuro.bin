@@ -48,6 +48,12 @@ __verify () {
    "$_sha_sig" "$1"
 }
 
+__dl () {
+  __status "Downloading $1 for ${_rel}"
+  ftp -o "$1" \
+   "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/$1" >/dev/null
+}
+
 case "$1" in
   -h|help)
     __usage ; exit 0
@@ -61,9 +67,7 @@ case "$1" in
     # We download both SHA256 and SHA256.sig to avoid endless loops if we get
     #  a broken SHA256.sig
     for _h in "${_sha}" "${_sha_sig}"; do
-      __status "Downloading $_h"
-      ftp -o "$_h" \
-       "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_h}" >/dev/null
+      __dl "$_h"
     done
 
     # Check SHA256 against known signature keys (on current system)
@@ -71,11 +75,10 @@ case "$1" in
     signify -V -q -x "${_sha_sig}" \
      -p "/etc/signify/openbsd-${_rel_nodot}-base.pub" -m "${_sha}"
 
+    # We download the archives until signify checks out
     for _tgz in "${_src_tgz}" "${_sys_tgz}"; do
       while ! __verify "$_tgz"; do
-        __status "Downloading $_src_tgz"
-        ftp -o "$_tgz" \
-         "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_tgz}" >/dev/null
+        __dl "$_tgz"
       done
     done
   ;;
