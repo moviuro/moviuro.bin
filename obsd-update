@@ -29,7 +29,7 @@ case "$1" in
 
     # We download both SHA256.sig and SHA256 as base of truth
     for _h in "${_sha}" "${_sha_sig}"; do
-      __status "Downloading $_h"
+      __status "Downloading $_h for $_arc"
       ftp -o "$_h" \
        "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_arch}/${_h}" \
        >/dev/null
@@ -50,5 +50,7 @@ case "$1" in
          >/dev/null
       done
     done
+
+    __status "Now: https://www.openbsd.org/faq/upgrade${_rel_nodot}.html"
   ;;
 esac
