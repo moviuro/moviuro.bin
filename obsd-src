@@ -61,7 +61,7 @@ case "$1" in
     __usage ; exit 0
   ;;
   init)
-    cd $_tgz_dir
+    cd "$_tgz_dir"
 
     : > "${_sha}"
     : > "${_sha_sig}"
@@ -85,7 +85,7 @@ case "$1" in
     done
   ;;
   deflate)
-    cd $_tgz_dir
+    cd "$_tgz_dir"
     __verify "$_src_tgz"
     __verify "$_sys_tgz"
     __status "Cleaning up $_src_dir, this might take a while"
