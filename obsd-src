@@ -9,6 +9,8 @@ set -e
 : "${_sys_tgz="sys.tar.gz"}"
 : "${_sha="SHA256"}"
 : "${_sha_sig="SHA256.sig"}"
+: "${_jobs="$(($(sysctl -n hw.ncpu) - 1))"}"
+
 _rel="${2:-"$(uname -r)"}"
 _rel_underscore="$(printf '%s' "$_rel" | sed 's/\./_/')"
 _rel_nodot="$(printf '%s' "$_rel" | sed 's/\.//')"
@@ -100,6 +102,27 @@ case "$1" in
     # example: CVSROOT=anoncvs@anoncvs.fr.openbsd.org:/cvs <command>
     # list of CVSROOTs that could work: https://www.openbsd.org/anoncvs.html#CVSROOT
     cvs -q up -rOPENBSD_"${_rel_underscore}" -Pd
+  ;;
+  build_userland)
+    _start="$(date "+%s")"
+
+    __status "Cleaning up /usr/obj, this might take a while"
+    rm -rf /usr/obj/*
+
+    __status "Making obj"
+    cd "${_src_dir}"
+    make obj >/dev/null
+
+    __status "Making distrib-dirs"
+    cd "${_src_dir}"/etc
+    env DESTDIR=/ make distrib-dirs >/dev/null
+
+    __status "Making build ($_jobs jobs)"
+    cd "${_src_dir}"
+    make -j"${_jobs}" build >/dev/null
+
+    _stop="$(date "+%s")"
+    __status "Build finished: $(date -r $_start) to $(date -r $_stop)"
   ;;
   *)
     __usage >&2 ; exit 5
