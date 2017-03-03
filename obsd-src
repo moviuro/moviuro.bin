@@ -103,7 +103,7 @@ case "$1" in
     # list of CVSROOTs that could work: https://www.openbsd.org/anoncvs.html#CVSROOT
     cvs -q up -rOPENBSD_"${_rel_underscore}" -Pd
   ;;
-  build_userland)
+  build)
     _start="$(date "+%s")"
 
     __status "Cleaning up /usr/obj, this might take a while"
