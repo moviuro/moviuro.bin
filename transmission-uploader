@@ -15,7 +15,7 @@ __usage () {
   cat << EOF
 Add a torrent or magnet link to your transmission web interface
 
-$0 [-s server] [-p port] [-u user -w password] [-v] link [link [...]]
+$0 [-s server] [-p port] [-u user -w password] [-v] [link [link [...]]]
 $0 -h
 
 Default values are:
@@ -26,6 +26,9 @@ Default values are:
 
 -h: print this help text
 -v: be verbose (set -x)
+
+The following syntax also works:
+< torrent_list.txt | $0
 EOF
 }
 
@@ -43,10 +46,6 @@ done
 
 shift $((OPTIND-1))
 
-if [ -z "$1" ]; then
-  __usage >&2 ; exit 1
-fi
-
 # set true if you want every torrent to be paused initially
 #_paused="true"
 _paused="false"
@@ -58,21 +57,35 @@ if [ -z "$_user" ]; then
 
   _sessid="$(curl --silent "$_endpoint" | sed 's/.*<code>//g;s/<\/code>.*//g')"
 
-  for _link in "$@"; do
+  { if [ -z "$1" ]; then
+    cat -
+  else
+    for _i in "$@"; do
+      echo "$_i"
+    done
+  fi } |
+  { while IFS= read -r _link; do
     if ! curl --silent --header "$_sessid" "$_endpoint" -d \
       "{\"method\":\"torrent-add\",\"arguments\":\
         {\"paused\":$_paused,\"filename\":\"$_link\"}\
       }" | grep -q '"result":"success"'; then
       : $((_exit_code+=1))
     fi
-  done
+  done }
 
 else
 
   _sessid="$(curl --silent --anyauth --user "$_user:$_password" "$_endpoint" |
       sed 's/.*<code>//g;s/<\/code>.*//g')"
 
-  for _link in "$@"; do
+  { if [ -z "$1" ]; then
+    cat -
+  else
+    for _i in "$@"; do
+      echo "$_i"
+    done
+  fi } |
+  { while IFS= read -r _link; do
     if ! curl --silent --anyauth --user "$_user:$_password" --header "$_sessid" \
         "$_endpoint" -d \
           "{\"method\":\"torrent-add\",\"arguments\":\
@@ -80,7 +93,7 @@ else
           }" | grep -q '"result":"success"'; then
           : $((_exit_code+=1))
     fi
-  done
+  done }
 fi
 
 exit $_exit_code
