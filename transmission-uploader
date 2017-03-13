@@ -3,6 +3,7 @@
 # Inspired from
 # https://blog.flo.cx/2011/02/how-to-open-magnet-links-on-a-remote-transmission-daemon-with-one-click/
 
+_file=/dev/null
 _server="http://127.0.0.1"
 _port="9091"
 _myname="$(basename "$0")"
@@ -15,10 +16,13 @@ __usage () {
   cat << EOF
 Add a torrent or magnet link to your transmission web interface
 
-$0 [-s server] [-p port] [-u user -w password] [-v] [link [link [...]]]
+$0 [-k file] [-s server] [-p port] [-u user -w password] [-v] [link [link [...]]]
 $0 -h
 
 Default values are:
+  o file:   $_file
+    Used to keep track of which links have already been uploaded to your
+    transmission daemon
   o server: $_server
   o port:   $_port
   o user:   <empty>
@@ -32,9 +36,10 @@ The following syntax also works:
 EOF
 }
 
-while getopts ":hs:p:u:vw:" _opt; do
+while getopts ":hk:s:p:u:vw:" _opt; do
   case "$_opt" in
     h) __usage ; exit 0     ;;
+    k) _file="$OPTARG"      ;;
     p) _port="$OPTARG"      ;;
     s) _server="$OPTARG"    ;;
     u) _user="$OPTARG"      ;;
@@ -65,11 +70,15 @@ if [ -z "$_user" ]; then
     done
   fi } |
   { while IFS= read -r _link; do
-    if ! curl --silent --header "$_sessid" "$_endpoint" -d \
-      "{\"method\":\"torrent-add\",\"arguments\":\
-        {\"paused\":$_paused,\"filename\":\"$_link\"}\
-      }" | grep -q '"result":"success"'; then
-      : $((_exit_code+=1))
+      if ! grep -q "$_link" "$_file"; then
+        if curl --silent --header "$_sessid" "$_endpoint" -d \
+         "{\"method\":\"torrent-add\",\"arguments\":\
+          {\"paused\":$_paused,\"filename\":\"$_link\"}\
+         }" | grep -q '"result":"success"'; then
+          echo "$_link" >> "$_file"
+        else
+          : $((_exit_code+=1))
+        fi
     fi
   done }
 
@@ -86,12 +95,16 @@ else
     done
   fi } |
   { while IFS= read -r _link; do
-    if ! curl --silent --anyauth --user "$_user:$_password" --header "$_sessid" \
-        "$_endpoint" -d \
-          "{\"method\":\"torrent-add\",\"arguments\":\
-            {\"paused\":$_paused,\"filename\":\"$_link\"}\
-          }" | grep -q '"result":"success"'; then
-          : $((_exit_code+=1))
+    if ! grep -q "$_link" "$_file"; then
+      if curl --silent --anyauth --user "$_user:$_password" --header "$_sessid" \
+       "$_endpoint" -d \
+       "{\"method\":\"torrent-add\",\"arguments\":\
+         {\"paused\":$_paused,\"filename\":\"$_link\"}\
+       }" | grep -q '"result":"success"'; then
+        echo "$_link" >> "$_file"
+      else
+        : $((_exit_code+=1))
+      fi
     fi
   done }
 fi
