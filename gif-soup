@@ -63,8 +63,8 @@ __bg () {
   # convert(1) to extract the single top-left pixel and extract its color
   # throughout the .gif; then grep for its only values that are NOT transparent
   # and then take the first one
-  _solid_color="$(convert "$1" -crop 1x1+0+0 -depth 8 txt: | grep -E \
-    '#[A-F0-9]{6}(FF|) ' | sort -u | awk '{ print $3 }' | head -n 1)"
+  _solid_color="$(convert "$1" -crop 1x1+0+0 -depth 8 txt: | grep -Eo \
+    '#[A-F0-9]{6}(FF|)' | sort -u | head -n 1)"
 
   # Now $_solid_color contains either #RRGGBB or #RRGGBBAA and we need to
   # discard the 'AA' part (where AA = FF anyway, because we used grep earlier),
