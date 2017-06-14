@@ -94,3 +94,5 @@ __rel_torrent 'http://download.trueos.org/master/amd64/' |
 # tails
 __rel_torrent 'https://tails.boum.org/torrents/files/'
 
+# FreeBSD
+__magnet "https://wiki.freebsd.org/Torrents"
