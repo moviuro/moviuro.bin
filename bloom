@@ -58,10 +58,10 @@ for _arch in amd64 i386 ; do
 done
 
 # Ubuntu
-__abs_torrent 'https://www.ubuntu.com/download/alternative-downloads' |
+__abs_torrent 'https://www.ubuntu.com/download/alternative-downloads'
 
 # openSUSE
-__abs_torrent 'https://software.opensuse.org/distributions/leap' |
+__abs_torrent 'https://software.opensuse.org/distributions/leap'
 
 # Linux Mint
 # It's not trivial to get a page with the latest torrents
@@ -76,7 +76,7 @@ __magnet 'https://elementary.io'
 # It's not trivial to get a page with the latest torrents
 
 # TrueOS
-__rel_torrent 'http://download.trueos.org/master/amd64/' |
+__rel_torrent 'http://download.trueos.org/master/amd64/'
 
 # ReactOS
 # Uses sourceforge to distribute its isos
