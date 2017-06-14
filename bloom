@@ -25,7 +25,7 @@ fi
 
 # We find magnet links
 __magnet () {
-  __download "$1" | grep -Eo 'magnet:[^"]+'
+  __download "$1" | grep -Eo 'magnet:\?[^"<> ]+'
 }
 
 # We find absolute torrent links
