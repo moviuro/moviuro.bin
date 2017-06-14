@@ -23,36 +23,45 @@ else
   exit 4
 fi
 
-# Archlinux
-__download 'https://www.archlinux.org/download/' |grep -Eo 'magnet:[^"]+'
+# We find magnet links
+__magnet () {
+  __download "$1" | grep -Eo 'magnet:[^"]+'
+}
 
-# Debian
-for _arch in amd64 i386 ; do
-  # Installation media
-  for _medium in 'cd' 'dvd'; do
-    _page="https://cdimage.debian.org/debian-cd/current/$_arch/bt-$_medium/"
-    __download "$_page" | grep -Eo 'href="[^"]+\.torrent' |
-     grep -Eo '[^"]+\.torrent' |
-      while read -r _rel_link; do
-        printf '%s%s\n' "$_page" "$_rel_link"
-      done
-  done
-  # Live CD
-  _page="https://cdimage.debian.org/debian-cd/current-live/$_arch/bt-hybrid/"
+# We find absolute torrent links
+__abs_torrent () {
+  __download "$1" | grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent'
+}
+
+# We find relative links to the torrents and generate an absolute link
+__rel_torrent () {
+  _page="$1"
   __download "$_page" | grep -Eo 'href="[^"]+\.torrent' |
    grep -Eo '[^"]+\.torrent' |
     while read -r _rel_link; do
       printf '%s%s\n' "$_page" "$_rel_link"
     done
+  unset _page _rel_link
+}
+
+# Archlinux
+__magnet 'https://www.archlinux.org/download/'
+
+# Debian
+for _arch in amd64 i386 ; do
+  # Installation media
+  for _medium in 'cd' 'dvd'; do
+    __rel_torrent "https://cdimage.debian.org/debian-cd/current/$_arch/bt-$_medium/"
+  done
+  # Live CD
+  __rel_torrent "https://cdimage.debian.org/debian-cd/current-live/$_arch/bt-hybrid/"
 done
 
 # Ubuntu
-__download 'https://www.ubuntu.com/download/alternative-downloads' |
- grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent'
+__abs_torrent 'https://www.ubuntu.com/download/alternative-downloads' |
 
 # openSUSE
-__download 'https://software.opensuse.org/distributions/leap' |
- grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent'
+__abs_torrent 'https://software.opensuse.org/distributions/leap' |
 
 # Linux Mint
 # It's not trivial to get a page with the latest torrents
@@ -61,17 +70,13 @@ __download 'https://software.opensuse.org/distributions/leap' |
 # Doesn't seem to provide torrents..?
 
 # Elementary
-__download 'https://elementary.io' | grep -Eo 'magnet:[^"]+'
+__magnet 'https://elementary.io'
 
 # CentOS
 # It's not trivial to get a page with the latest torrents
 
 # TrueOS
-__download 'http://download.trueos.org/master/amd64/' |
- grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent' |
-  while read -r _rel_link; do
-    printf '%s%s\n' 'http://download.trueos.org/master/amd64/' "$_rel_link"
-  done
+__rel_torrent 'http://download.trueos.org/master/amd64/' |
 
 # ReactOS
 # Uses sourceforge to distribute its isos
@@ -87,9 +92,5 @@ __download 'http://download.trueos.org/master/amd64/' |
 # It's not trivial to get a page with the latest torrents
 
 # tails
-__download 'https://tails.boum.org/torrents/files/' |
- grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent' |
-  while read -r _rel_link; do
-    printf '%s%s\n' 'https://tails.boum.org/torrents/files/' "$_rel_link"
-  done
+__rel_torrent 'https://tails.boum.org/torrents/files/'
 
