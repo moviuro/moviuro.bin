@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# Update a Hurricane Electric IPv6 tunnel endpoint to that of the current
+# machine.
+# Don't forget to set $MYIP_FILE (optional), $TB_USERNAME $TB_KEY and $TB_ID
+
+: "${MYIP_FILE=/var/myip}"
+
+prev_ip="$(cat "$MYIP_FILE")"
+
+if [ -z "$prev_ip" ]; then
+  if ! touch "$MYIP_FILE"; then
+    echo "Can't touch(1) $MYIP_FILE, either set \$MYIP_FILE or chmod(1) it" >&2
+    exit 2
+  fi
+fi
+
+cur_ip="$(curl -s4 http://icanhazip.com)"
+
+ipv4='(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+
+if printf '%s\n' "$cur_ip" | grep -qE "$ipv4"; then
+  if [ "$cur_ip" = "$prev_ip" ]; then
+    : # Same IP, don't change the tunnel's endpoint
+  else
+    printf '%s\n' "$cur_ip" > "$MYIP_FILE"
+    if [ -z "$TB_USERNAME" ] || [ -z "$TB_KEY" ] || [ -z "$TB_ID" ]; then
+      echo "Please set \$TB_USERNAME \$TB_KEY \$TB_ID" >&2
+      exit 3
+    else
+      # API documentation: https://forums.he.net/index.php?topic=3153.0
+      curl -s "https://${TB_USERNAME}:${TB_KEY}@ipv4.tunnelbroker.net/nic/update?hostname=${TB_ID}"
+      exit "$?"
+    fi
+  fi
+else
+  echo "Ouch, icanhazip.com spat out $cur_ip, which is NOT an IP address" >&2
+  exit 4
+fi
+
