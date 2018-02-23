@@ -9,6 +9,14 @@ __check() {
   fi
 }
 
+__pause() {
+  pkill -STOP "$1"
+  while pgrep i3lock; do
+    sleep 1
+  done
+  pkill -CONT "$1"
+}
+
 __check i3lock
 __check convert
 __check scrot
@@ -34,6 +42,8 @@ esac
 
 i3lock --24 -i "$_lockfile" || # lixxia's fork
   i3lock -i "$_lockfile"
+
+__pause mpv &
 
 __cleanup
 
