@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+tmux new-session -d -s stress
+tmux send-keys -tstress "mprime" C-m
+tmux send-keys -tstress "15" C-m
+tmux send-keys -tstress "" C-m
+tmux send-keys -tstress "" C-m
+tmux split-window -h -tstress
+tmux send-keys -tstress "htop" C-m
+tmux split-window -v -tstress
+tmux send-keys -tstress "while :; do sensors; sleep 5; done" C-m
+tmux select-pane -tstress -L
+tmux attach -tstress
