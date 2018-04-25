@@ -10,6 +10,9 @@ tmux send-keys -tstress "" C-m
 tmux split-window -h -tstress
 tmux send-keys -tstress "htop" C-m
 tmux split-window -v -tstress
-tmux send-keys -tstress "while :; do sensors; sleep 5; done" C-m
+tmux send-keys -tstress "rm temp.log" C-m
+tmux send-keys -tstress "while :; do sort -r temp.log|uniq -c|head; echo '----'; sleep 5; done" C-m
+tmux split-window -v -tstress
+tmux send-keys -tstress "while :; do sensors | grep -Eo '^Core[^(]+' | grep -Eo '[0-9]+.[0-9]' >> temp.log ; sleep 5; done" C-m
 tmux select-pane -tstress -L
 tmux attach -tstress
