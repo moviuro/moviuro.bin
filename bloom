@@ -61,7 +61,7 @@ done
 __abs_torrent 'https://www.ubuntu.com/download/alternative-downloads'
 
 # openSUSE
-__abs_torrent 'https://software.opensuse.org/distributions/leap'
+# Doesn't provide torrents anymore!
 
 # Linux Mint
 # It's not trivial to get a page with the latest torrents
