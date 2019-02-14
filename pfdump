@@ -1,0 +1,132 @@
+#!/bin/sh
+
+set -e
+
+unset _clean
+_number=7
+_table=bruteforce
+_out="/var/run/$(basename "$0")"
+
+__usage () {
+  cat << EOH
+$0 [-d] [-o out] [-t table] [-n number]
+$0 -c [-n number]
+$0 -h
+
+Dump new hosts of a pf table, taking into account only the specified
+past number of files.
+  o -c: clean files if there are more than number files (see -n)
+  o -d: enable debug (set -x)
+  o -h: display this help text
+  o -o out: specify an output directory
+    Default: $_out
+  o -t table: work with the specified table
+    Default: $_table
+  o -n number: only take into account the past number files
+    Default: $_number
+  o -i remote ...: incorporate $(basename $0) files from remote (ssh)
+    Default: none
+
+CONCEPT
+
+Files created by $(basename $0) will hold "new" entries of the pf table. If we
+concatenate multiple files, we get a long list of entries (hosts), and the
+added information of first introduction.
+
+Note that any one file depends on the previous $_number ones.
+To generate any new file:
+  o dump the current table $_table
+  o remove from the dump any host already in the $_number previous files
+  o put the remaining (aka "new") hosts in their own file
+
+NB: playing with time is very, very hard: I'm not doing it. I'm dealing with
+sanely named files. I will not check whether the files are old, I will just
+take the last head(1) -n $_number of them after I sort(1) them.
+
+EXAMPLES
+
+% ls $_out
+$_table.2019-02-08.1549662726
+
+% pfctl -t $_table -T show | grep -v -f $_out/$_table.2019-02-08.1549662726
+1.2.3.4
+
+% $0
+no changes.
+
+% ls $_out
+$_table.2019-02-08.1549662726
+$_table.$(date +"%Y-%m-%d.%s")
+
+% cat $_table.$(date +"%Y-%m-%d.%s")
+1.2.3.4
+
+NOTES
+
+This might be completely overkill if pfctl -T expire does what you need.
+I intend to add support for sharing tables across machines (with ssh(1)), and
+pfctl(8) can't do that.
+
+BUGS
+
+None (yet).
+See https://gitlab.com/moviuro/moviuro.bin and post issues there.
+
+EOH
+}
+
+__die () {
+    printf "%s\n" "$1"
+	exit "${2:-1}"
+}
+
+while getopts ":do:t:n:ch" _opt; do
+  case "$_opt" in
+    d) set -x                     ;;
+    o) _out="$OPTARG"             ;;
+    t) _table="$OPTARG"           ;;
+    n) _number="$OPTARG"          ;;
+    c) _clean="y"                 ;;
+    h) __usage ; exit 0           ;;
+    *) __usage >&2 ; exit 1       ;;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
+# Sanity
+umask 077
+
+if ! [ -w "$_out" ]; then
+  mkdir "$_out" || __die "$_out doesn't exist and couldn't be created" 2
+fi
+
+cd "$_out" || __die "Can't cd $_out" 3
+_today="$(date +"%Y-%m-%d.%s")"
+
+# Create the filter
+_GREP_OPTIONS="$(find . -name "$_table."'*' | sort -r | head -n "$_number" |
+  while IFS= read -r _f; do
+    printf ' -f %s' "$_f"
+  done
+)"
+
+# Dump current data
+# We use || : because pfctl | grep -v could return nothing.
+#Maybe use grep's return code instead:
+#     0     One or more lines were selected.
+#     1     No lines were selected.
+#     >1    An error occurred.
+if [ -z "$_GREP_OPTIONS" ]; then
+  # No existing (history) files
+  pfctl -t "$_table" -T show > "$_table.$_today" || :
+else
+  pfctl -t "$_table" -T show | grep -v $_GREP_OPTIONS > "$_table.$_today" || :
+fi
+
+# Create the new list of hosts, and send it to pf
+pfctl -t "$_table" -T replace \
+  $(find . -name "$_table."'*' | sort -r | head -n "$_number" | while IFS= read -r _f; do
+    cat "$_f"
+  done)
+
