@@ -89,10 +89,24 @@ __rel_torrent 'http://download.trueos.org/master/amd64/'
 # Doesn't seem to provide torrents..?
 
 # Mageia
-# It's not trivial to get a page with the latest torrents
+__magnet "http://www.mageia.org/en/downloads/alternative/"
 
 # tails
 __rel_torrent 'https://tails.boum.org/torrents/files/'
 
 # FreeBSD
 __magnet "https://wiki.freebsd.org/Torrents"
+
+# Solus
+__abs_torrent "https://getsol.us/download/"
+
+# Parrot
+for _version in security home; do
+  __abs_torrent "https://www.parrotsec.org/download-${_version}.php"
+done
+
+# lubuntu
+__magnet "https://lubuntu.me/downloads/"
+
+# slackware
+__rel_torrent "http://www.slackware.com/getslack/torrents.php"
