@@ -109,4 +109,4 @@ done
 __magnet "https://lubuntu.me/downloads/"
 
 # slackware
-__rel_torrent "http://www.slackware.com/getslack/torrents.php"
+# http://www.slackware.com/getslack/torrents.php is broken, not dealing with it
