@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Simple, stupid, slow wg(8) vanity key generator
+# ./$0 pattern
+#
+# pattern MUST be lowercase. If it isn't, there won't be any match.
+#
+# Local tests (OCed 7700K@4.1GHz) suggest that this script tries 50000 keypairs
+# in <120 seconds. Far fewer than
+# https://github.com/warner/wireguard-vanity-address claims, but I tried using
+# it and it gave me no match :(
+# 
+
+while : ; do
+  priv="$(wg genkey)"
+  case "$(printf '%s\n' "$priv" | wg pubkey | tr [:upper:] [:lower:])" in
+    *${1}*) printf 'priv %s pub %s\n' "$priv" "$(printf '%s\n' "$priv" | wg pubkey)";;
+    *) : ;;
+  esac
+done
