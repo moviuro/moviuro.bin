@@ -169,12 +169,12 @@ __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt"
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_malware.txt"
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt"
 
-__add_hosts "http://someonewhocares.org/hosts/hosts" '127\.0\.0\.1'
+__add_hosts "https://someonewhocares.org/hosts/hosts" '127\.0\.0\.1'
 __add_hosts "http://winhelp2002.mvps.org/hosts.txt" '0\.0\.0\.0'
 __add_hosts "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" \
   '0\.0\.0\.0'
 __add_hosts \
-  "http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&mimetype=plaintext" \
+  "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&mimetype=plaintext" \
   '127\.0\.0\.1'
 __add_hosts "https://zeustracker.abuse.ch/blocklist.php?download=hostfile" \
   '127\.0\.0\.1'
