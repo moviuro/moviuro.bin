@@ -54,7 +54,15 @@ fi
 _temp_dir="$(mktemp -d -t "$(basename "$0").XXXXXX")"
 _temp="$_temp_dir/badips"
 _temp_ack="$_temp_dir/acks"
-ipv4='^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+# This regex matches any valid IPv4, along with its subnet UP TO /11, to avoid
+# shooting ourselves in the foot and making a too large part of the big internet
+# unavailable. If the subnet is larger, then only match the host part.
+ipv4='^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(/(1[1-9]|2[0-9]|3[012]))?'
+# For instance:
+# % echo '123.123.123.0/24 ; hello' | grep -Eo "$ipv4"
+# 123.123.123.0/24
+# % echo '123.123.123.0/8 ; no no' | grep -Eo "$ipv4"
+# 123.123.123.0
 
 __cleanup () {
   [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
@@ -73,7 +81,7 @@ __to_unix () {
   # We cast everything to lower-case
   tr '[:upper:]' '[:lower:]' |
   # We select lines that contain an IP address
-  grep -E "$ipv4" |
+  grep -Eo "$ipv4" |
   # We sort the file
   sort -un > "$_temp".2
   # We replace the original file
@@ -99,6 +107,7 @@ __add "https://zeustracker.abuse.ch/blocklist.php?download=badips"
 __add "https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist"
 __add "https://www.binarydefense.com/banlist.txt"
 __add "https://www.malwaredomainlist.com/hostslist/ip.txt"
+__add "https://www.spamhaus.org/drop/drop.lasso"
 
 __to_unix
 
