@@ -1,0 +1,51 @@
+#!/bin/sh
+
+__usage() {
+cat << EOH
+$0 [-g] [file]
+$0 -h
+
+$0 takes a screenshot, saves it at "${TEMP:-/tmp}/${0##*/}.png"
+The name is: stupid screenshot script using slop(1) (and) import(1)
+
+-g:
+  disable selection rectangle, grab a global snapshot
+
+-h:
+  display usage
+
+file:
+  alternate save location
+EOH
+}
+
+if [ "$1" = "-h" ]; then
+  __usage
+  exit 0
+fi
+
+for _c in slop import; do
+  if ! command -v "$_c" >/dev/null 2>&1; then
+    echo "missing $_c" >&2
+    exit 2
+  fi
+done
+
+if [ "$1" != "-g" ]; then
+  _dest="${1:-/tmp/${0##*/}.png}"
+  G="$(slop -f "%g")" || exit 3
+  if import -window root -crop "$G" "$_dest"; then
+    printf '%s\n' "$_dest"
+  else
+    echo "couldn't import(1)" >&2
+    exit 4
+  fi
+else
+  _dest="${2:-/tmp/${0##*/}.png}"
+  if import -window root "$_dest"; then
+    printf '%s\n' "$_dest"
+  else
+    echo "couldn't import(1)" >&2
+    exit 4
+  fi
+fi
