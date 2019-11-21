@@ -23,6 +23,8 @@ Create a lying DNS file for the specified format.
     Default: <stdout>
   o -t target: specify the target
     Default: $_target
+
+MAKE SURE YOU ARE ALLOWED TO USE THE LISTS IN YOUR SITUATION
 EOF
 }
 

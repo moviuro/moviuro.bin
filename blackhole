@@ -11,6 +11,8 @@ Create a list of known-bad IPs
   o -d: enable debug (set -x)
   o -o out: specify an output file.
     Default: <stdout>
+
+MAKE SURE THAT YOU ARE ALLOWED TO USE THE LISTS IN YOUR SITUATION
 EOF
 }
 
