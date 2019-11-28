@@ -56,7 +56,7 @@ for _arch in amd64 i386 ; do
 done
 
 # Ubuntu
-__abs_torrent 'https://www.ubuntu.com/download/alternative-downloads'
+__abs_torrent 'https://ubuntu.com/download/alternative-downloads'
 
 # openSUSE
 # Doesn't provide torrents anymore!
