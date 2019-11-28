@@ -100,7 +100,7 @@ __abs_torrent "https://getsol.us/download/"
 
 # Parrot
 for _version in security home; do
-  __abs_torrent "https://www.parrotsec.org/download-${_version}.php"
+  __abs_torrent "https://www.parrotlinux.org/download-${_version}.php"
 done
 
 # lubuntu
