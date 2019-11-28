@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 # first choice is curl(1), should be OK for Linux
 if command -v curl >/dev/null 2>&1; then
   __download () {
