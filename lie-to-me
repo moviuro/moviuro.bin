@@ -95,6 +95,11 @@ __to_unix () {
   tr '[:upper:]' '[:lower:]' |
   # We ignore lines with spaces or empty lines
   grep -vE '( |^$)' |
+  # We ignore "localhost"; this is the single most problematic host ever.
+  # Many poorly configured programs will use the DNS to ask who is "localhost",
+  # instead of asking the true source in nsswitch.conf(5). This causes
+  # phenomenal clusterfucks.
+  grep -v '^localhost$' |
   # We sort the file
   sort -u > "$_temp".2
   # We replace the original file
