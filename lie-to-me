@@ -158,6 +158,9 @@ case "$_format" in
       printf '\n'
     }
   ;;
+  *)
+    __usage >&2 ; exit 1
+  ;;
 esac
 
 __add_simple "https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt"
@@ -180,10 +183,11 @@ __add_hosts "https://www.malwaredomainlist.com/hostslist/hosts.txt" \
 
 __to_unix
 
-{ # We print the headers too, if we know how to do it
-  __headers
+{
   # We print the acks first
   cat "$_temp_ack"
+  # We print the headers too, if we know how to do it
+  __headers
   while IFS= read -r _host; do
     __to_format "$_host" "$_target"
   done
