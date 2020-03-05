@@ -4,13 +4,16 @@ set -e
 
 _target="127.0.0.1"
 _format="unbound"
+_unresolve="use-application-dns.net"
 
 __usage () {
   cat << EOF
-$0 [-d] [-f format] [-o out] [-t target]
+$0 [-d] [-f format] [-o out] [-t target] [-u "domain [domain [...]]"]
 $0 -h
 
 Create a lying DNS file for the specified format.
+Lies include: tracking, malware-related, advertizing sites and also sites that
+must not resolve, see below.
   o -d: enable debug (set -x)
   o -f format: specify an output format.
     Supported formats are:
@@ -23,18 +26,37 @@ Create a lying DNS file for the specified format.
     Default: <stdout>
   o -t target: specify the target
     Default: $_target
+  o -u "domain [domain [...]]": domains to break resolution for (NXDOMAIN)
+    Default: $_unresolve
 
 MAKE SURE YOU ARE ALLOWED TO USE THE LISTS IN YOUR SITUATION
+
+There are also a few domains that we MUST take care of:
+  o localhost: this one is the most bizarre. Some badly written applications
+    WILL query our lying DNS resolver for 'localhost' and ignore
+    nsswitch.conf(5) (like, e.g. redis)
+  o use-application-dns.net: this one is a canary domain for DoH. It is used
+    by badly written software (Firefox) to check whether it should use DoH. This
+    defeats the ENTIRE FUCKING PURPOSE of DoH ANYWAY because my ISP could very
+    well intercept and modify that DNS request (made by the usual means) to
+    return NXDOMAIN, thus degrading Firefox to classic DNS queries. WHICH IS THE
+    EXACT SITUATION DoH WAS SUPPOSED TO PROTECT USERS FROM.
+
+SEE ALSO
+
+  https://support.mozilla.org/en-US/kb/canary-domain-use-application-dnsnet
+  https://news.ycombinator.com/item?id=22414912
 EOF
 }
 
-while getopts ":df:ho:t:" _opt; do
+while getopts ":df:ho:t:u:" _opt; do
   case "$_opt" in
     d) set -x                 ;;
     f) _format="$OPTARG"      ;;
     h) __usage; exit 0        ;;
     o) _output_file="$OPTARG" ;;
     t) _target="$OPTARG"      ;;
+    u) _unresolve="$OPTARG"   ;;
     *) __usage >&2 ; exit 1   ;;
   esac
 done
@@ -70,6 +92,7 @@ fi
 _temp_dir="$(mktemp -d -t "$(basename "$0").XXXXXX")"
 _temp="$_temp_dir/hosts"
 _temp_ack="$_temp_dir/acks"
+_unresolve_regex="^($(echo "$_unresolve" | tr ' ' '|'))$"
 
 __cleanup () {
   [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
@@ -100,6 +123,8 @@ __to_unix () {
   # instead of asking the true source in nsswitch.conf(5). This causes
   # phenomenal clusterfucks.
   grep -v '^localhost$' |
+  # Ignore domains in $_unresolve too, they will be added later
+  grep -vE "$_unresolve_regex" |
   # We sort the file
   sort -u > "$_temp".2
   # We replace the original file
@@ -124,12 +149,21 @@ __headers () {
   :
 }
 
+__unresolve () {
+  :
+}
+
 # We define the __to_format function that properly prints the host redirection
 # in the specified form.
 # Usage:   __to_format "host"        "target"
 # Example: __to_format "example.com" "10.10.10.10"
 case "$_format" in
   "unbound")
+    __unresolve () {
+      for _d in "$@"; do
+        printf 'local-zone: "%s" static\n' "$_d"
+      done
+    }
     __to_format () {
       printf 'local-zone: "%s" redirect\n' "$1"
       printf 'local-data: "%s A %s"\n' "$1" "$2"
@@ -144,6 +178,9 @@ case "$_format" in
     echo "I do NOT include the headers in $_output_file" >&2
     __to_format () {
       printf '%s. IN A %s\n' "$1" "$2"
+    }
+    __unresolve () {
+      echo "I need help with this item on bind; please reach out." >&2
     }
   ;;
   "hosts")
@@ -191,6 +228,8 @@ __to_unix
   while IFS= read -r _host; do
     __to_format "$_host" "$_target"
   done
+  # Last, we add hosts that shouldn't resolve at all
+  __unresolve $_unresolve
 } < "$_temp" | __to_output
 
 __cleanup
