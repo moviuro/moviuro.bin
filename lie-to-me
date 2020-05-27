@@ -200,10 +200,6 @@ case "$_format" in
   ;;
 esac
 
-__add_simple "https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt"
-__add_simple "https://ransomwaretracker.abuse.ch/downloads/CW_C2_DOMBL.txt"
-__add_simple "https://ransomwaretracker.abuse.ch/downloads/TC_C2_DOMBL.txt"
-
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt"
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt"
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_malware.txt"
