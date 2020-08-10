@@ -34,7 +34,7 @@ true() {
 # first choice is curl(1), should be OK for Linux
 if command -v curl >/dev/null 2>&1; then
   __download () {
-    curl -s "$1"
+    curl -Ls --compressed "$1"
   }
 # second is fetch(1), for FreeBSD
 elif command -v fetch >/dev/null 2>&1; then
