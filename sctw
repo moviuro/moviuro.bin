@@ -15,6 +15,8 @@ today="$(date "+%Y-%m-%d")"
 : "${SCTW_CONFIG:="${XDG_CONFIG_HOME:=$HOME/.config}/$myname.rc"}"
 : "${TMPDIR:="/tmp"}"
 
+_values="sunrise sunset civil_twilight_begin civil_twilight_end"
+
 if [ -r "$SCTW_CONFIG" ]; then
   . "$SCTW_CONFIG"
 fi
@@ -41,20 +43,21 @@ else
   curl -s \
    "https://api.sunrise-sunset.org/json?lat=${SCTW_LAT}&lng=${SCTW_LNG}&formatted=0&date=${today}" \
    > "$mytmpfile"
-  for item in sunrise sunset day_length; do
+  for item in $_values; do
     printf '%s=%s\n' "$item" "$(jq .results.$item < "$mytmpfile")"
   done > "$myfile"
   . "$myfile"
-  if [ -z "$sunrise" ] || [ -z "$sunset" ]; then
-    echo "No sunset or sunrise values!" >&2
+  if [ -z "$sunrise" ] || [ -z "$sunset" ] || [ -z "$civil_twilight_begin" ] ||
+    [ -z "$civil_twilight_end" ]; then
+    echo "Missing value(s) in $myfile!" >&2
     exit 4
   fi
   if man date 2>&1 | grep -q GNU; then
     printf '%s=%s\n' \
-     night_end "$(date -d "$sunrise -1 hour" "+%s")" \
-     dawn_end  "$(date -d "$sunrise +1 hour" "+%s")" \
-     day_end   "$(date -d "$sunset  -1 hour" "+%s")" \
-     dusk_end  "$(date -d "$sunset  +1 hour" "+%s")" > "$myfile" 
+     civil_twilight_begin "$(date -d "$civil_twilight_begin" +%s)" \
+     sunrise              "$(date -d "$sunrise" +%s)" \
+     sunset               "$(date -d "$sunset" +%s)" \
+     civil_twilight_end   "$(date -d "$civil_twilight_end" +%s)" > "$myfile"
   else
     echo "Unsupported date(1), help me fix it." 2>&1
     exit 5
@@ -65,25 +68,25 @@ fi
 
 : "${SCTW_DAY_K:=6500}"
 : "${SCTW_NIGHT_K:=4500}"
-# We're doing something linear from NIGHT_K to DAY_K from sunrise -1h to
-# sunrise +1h; and same for sunset.
+# We're doing something linear from NIGHT_K to DAY_K from civil_twilight_begin
+# to sunrise; and from sunset to civil_twilight_end.
 Kdiff="$(( SCTW_DAY_K - SCTW_NIGHT_K ))"
 
 now="$(date "+%s")"
-night="$(( now < night_end ))"
-dawn="$(( now < dawn_end ))"
-day="$(( now < day_end ))"
-dusk="$(( now < dusk_end ))"
+night="$(( now < civil_twilight_begin ))" # It's dark
+dawn="$(( now < sunrise ))"               # It's getting brighter
+day="$(( now < sunset ))"                 # It's day
+dusk="$(( now < civil_twilight_end ))"    # It's getting darker
 if [ "$night" -eq 1 ]; then
   sct "$SCTW_NIGHT_K"
 elif [ "$dawn" -eq 1 ]; then
-  timediff="$(( now - night_end ))"
-  sct "$(( SCTW_NIGHT_K + Kdiff * timediff / 7200 ))"
+  timediff="$(( now - civil_twilight_begin ))"
+  sct "$(( SCTW_NIGHT_K + Kdiff * timediff / ( sunrise - civil_twilight_begin ) ))"
 elif [ "$day" -eq 1 ]; then
   sct "$SCTW_DAY_K"
 elif [ "$dusk" -eq 1 ]; then
-  timediff="$(( dusk_end - now ))"
-  sct "$(( SCTW_NIGHT_K + Kdiff * timediff / 7200 ))"
+  timediff="$(( civil_twilight_end - now ))"
+  sct "$(( SCTW_NIGHT_K + Kdiff * timediff / ( civil_twilight_end - sunset ) ))"
 else
   sct "$SCTW_NIGHT_K"
 fi
