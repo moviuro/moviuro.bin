@@ -109,7 +109,7 @@ __add "https://www.malwaredomainlist.com/hostslist/ip.txt"
 __add "https://www.spamhaus.org/drop/drop.lasso"
 __add "https://www.spamhaus.org/drop/dropv6.txt"
 __add "https://rules.emergingthreats.net/blockrules/compromised-ips.txt"
-__add "http://www.talosintel.com/feeds/ip-filter.blf"
+__add "https://talosintelligence.com/documents/ip-blacklist"
 
 __to_unix
 
