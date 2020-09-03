@@ -9,11 +9,23 @@ set -e
 
 __usage () {
   cat << EOH
-$0 path
+$0 path [left-ratio right-ratio top-ratio bottom-ratio]
 $0 -h
 
 $0 will use animated files in "path" and use them as looping wallpapers
 $0 -h displays this help text
+
+The optional ratio values are used in environments where the default mpv(1)
+behavior to center the video doesn't fit (multiple screens with odd placement).
+In that case, those arguments are passed as-are to mpv(1) and you should read up
+on the --video-margin-ratio-* options in its manpage.
+
+Example: 2560x1440+0+336 1080x1920+2560+0 (xrandr(1) output), want to center the
+gif on the 1440p monitor.
+-> left-ratio is 0
+-> right-ratio is 1080/(2560+1080) = 0.2967
+-> top-ratio is 336/1920 = 0.175
+-> bottom-ratio is (1920 - 336 - 1440)/1920 = 0.075
 
 We look for files ending in $_ext .
 You might set \$_ext to change this behavior.
@@ -26,7 +38,12 @@ EOH
 case "$1" in
   -h|help) __usage ; exit 0 ;;
   "") __usage >&2  ; exit 1 ;;
-  *) _path="$1" ;;
+  *)
+    _path="$1"
+    _lr="${2:-0}"
+    _rr="${3:-0}"
+    _tr="${4:-0}"
+    _br="${5:-0}" ;;
 esac
 
 # simple, stupid check
@@ -75,7 +92,11 @@ __bg () {
 }
 
 __run_mpv () {
-  mpv --border --video-unscaled --background="$2" --wid=0 "$1" --loop-file=inf --speed=1.0 >/dev/null 2>&1 &
+  mpv --border --video-unscaled --background="$2" \
+   --wid=0 --loop-file=inf --speed=1.0 \
+   --video-margin-ratio-left="$_lr" --video-margin-ratio-right="$_rr" \
+   --video-margin-ratio-top="$_tr"  --video-margin-ratio-bottom="$_br" \
+   "$1" >/dev/null 2>&1 &
 }
 
 __kill () {
