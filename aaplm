@@ -1,0 +1,187 @@
+#!/bin/sh
+
+# An almost passable library manager
+
+_number=1
+_season=1
+_dry_run=0
+
+__usage () {
+  cat << EOH
+$0 [-k] [-e number] [-s number] [-d] source [source ...] destination/
+
+Copy source file(s) to destination, try to guess what is what.
+If one source file exists in destination, we try to continue numbering files
+accordingly (sXXeXX.ext).
+Sources MUST be files. Use the * glob.
+Source files will be sorted alphabetically.
+
+Options:
+  -d: debug info (set -x)
+  -k: dry run, don't actually move files
+  -e number: first number for the new episode, default: $_number
+  -s number: new season number, default: previous season + 1, else $_season
+
+EXAMPLES
+
+% ls Downloads/
+PREFIX 71 SUFFIX.ext
+PREFIX 72 SUFFIX.ext
+
+% ls Videos/series/myseries/
+s05e01.ext # same contents as file 71 just above
+
+% $0 Downloads/*SUFFIX.ext Videos/series/myseries/
+Downloads/PREFIX 71 SUFFIX.ext is the same as Videos/series/myseries/s05e01.ext
+PREFIX 72 SUFFIX.ext -> s05e02.ext
+
+CONCEPT
+
+ We assume that both source and destination are slow: we minimize I/O
+
+ First, we get the checksums of the first few lines of each source file, which
+ we'll compare to that of all files in destination; if we find a match, we
+ assume that the two files are the same. With that information, we know how to
+ rename the source file to match its destination name.
+
+ Second, for all files that did not match an existing file in the destination,
+ we copy them, with the correct season and episode numbers. That means: keep the
+ same season as the last matching file, and add 1 to the episode number.
+EOH
+}
+
+__die () {
+  printf '%s\n' "$1" >&2
+  exit "${2:-1}"
+}
+
+if command -v sha256 >/dev/null 2>&1; then
+  __sha256 () {
+    sha256 | grep -Eo '[0-9a-f]{64}$'
+  }
+elif command -v sha256sum >/dev/null 2>&1; then
+  __sha256 () {
+    sha256sum | grep -Eo '^[0-9a-f]{64}'
+  }
+fi
+
+__quick_hash () {
+  head -n1 < "$1" | __sha256
+}
+
+while getopts ":dike:s:" _opt; do
+  case "$_opt" in
+    d) set -x ;;
+    i) _interactive=1 ;;
+    k) _dry_run=1 ;;
+    e) _number="$OPTARG" ;;
+    s) _season="$OPTARG" ;;
+    *) __die "$(__usage)" 2 ;;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
+_tmpfile="$(mktemp)"
+[ -z "$_tmpfile" ] && __die "Can't create temp file :(" 3
+_latestdestfile="$(mktemp)"
+_latestsourcefile="$(mktemp)"
+
+__cleanup () {
+  for f in "$_tmpfile" "$_latestdestfile" "$_latestsourcefile"; do
+    [ -e "$f" ] && rm "$f"
+  done
+}
+
+trap __cleanup INT TERM
+
+for _arg in "$@"; do
+  if ! [ -d "$_arg" ]; then
+    # Create the hash "map" of input files
+    printf "%s %s\n" "$(__quick_hash "$_arg")" "$_arg" \
+     >> "$_tmpfile"
+  else
+    # There should be one folder only... too lazy, this'll do
+    _dest="$_arg"
+  fi
+done
+
+[ -w "$_dest" ] || __die "Can't write to destination: $_dest :(" 4
+
+# __aaplmcp copies $1 to . , and uses $2 as season and $3 as episode number;
+# other inputs are passed to cp(1)
+__aaplmcp () {
+  : "${3?Requires fullpath, season, episode}"
+  _fp="${1}"
+  _s="${2}"
+  _e="${3}"
+  _ext="${1##*.}"
+  ((_s < 10)) && _s="0$_s"
+  ((_e < 10)) && _e="0$_e"
+  shift 3
+  if ((_dry_run)); then
+    echo cp -v "$@" -- "$_fp" "$_dest/s${_s}e${_e}.${_ext}"
+  else
+    cp -v "$@" -- "$_fp" "$_dest/s${_s}e${_e}.${_ext}"
+  fi
+}
+
+# count files in the destination - https://mywiki.wooledge.org/BashFAQ/004
+cd "$_dest" || __die "Cannot cd to $_dest :(" 5
+n=0
+for f in * .[!.]* ..?*; do
+  if test -e "$f" || test -L "$f"; then
+    n=$((n+1))
+  fi
+done
+cd - >/dev/null 2>&1
+
+if [ "$n" -gt 0 ]; then
+  # There are files in the destination
+  # We find all files in the destination and sort them; for each we try to see
+  # if it is among the source files (comparing hashes in $_tmpfile)
+  find "$_dest" -type f | sort | while IFS=' ' read -r f; do
+    _h="$(__quick_hash "$f")"
+    _matching_source="$(grep "$_h" "$_tmpfile" | cut -b66-)"
+    if [ -n "$_matching_source" ]; then
+      # some info !
+      echo "$_matching_source is the same as $f" >&2
+      # we need that info
+      printf '%s\n' "$_matching_source" > "$_latestsourcefile"
+      printf '%s\n' "$f" > "$_latestdestfile"
+      # remove matches from the "hashmap" file
+      grep -v "$_h" < "$_tmpfile" > "$_tmpfile".2 ; mv "$_tmpfile".2 "$_tmpfile"
+    fi
+  done
+  # If at least one file in the destination matches with an input:
+  # _latestdestfile now contains the path to the last matching dest file
+  # _latestsourcefile now contains the path to the last matched source file
+  # we extract from the last matching destination file its season and episode
+  # number:
+  if [ "$(wc -c < "$_latestdestfile")" -gt 0 ]; then
+    _season="$(grep -Eo '[sS][0-9]+[^/]+' "$_latestdestfile" | grep -Eo '[sS][0-9]+' |
+     sed -e 's/^[sS][0]*//')"
+    _number="$(grep -Eo '[eE][0-9]+[^/]+' "$_latestdestfile" | grep -Eo '[eE][0-9]+' |
+     sed -e 's/^[eE][0]*//')"
+    if ! [ "$_season" -ge 0 ] || ! [ "$_number" -ge 0 ]; then
+      __die "season $_season and episode $_number look weird;\
+       $_dest should contain files matching sXXeXX.ext" 6
+    fi
+    # Season is continued, whereas the next episode must be incremented
+    _number=$((_number + 1))
+  fi
+else
+  # There are no files in the destination: we use either supplied -n and -s or 1
+  # Alphabetical sort
+  :
+fi
+
+while IFS=' ' read -r _ _fullpath; do
+  printf '%s\n' "$_fullpath"
+done < "$_tmpfile" | sort |
+while read -r _fullpath; do
+  __aaplmcp "$_fullpath" "$_season" "$_number"
+  _number=$((_number + 1))
+done
+
+__cleanup
