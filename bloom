@@ -73,9 +73,6 @@ __magnet 'https://elementary.io'
 # CentOS
 # It's not trivial to get a page with the latest torrents
 
-# TrueOS
-__rel_torrent 'http://download.trueos.org/master/amd64/'
-
 # ReactOS
 # Uses sourceforge to distribute its isos
 
