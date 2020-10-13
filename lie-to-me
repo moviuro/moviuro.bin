@@ -14,6 +14,7 @@ $0 -h
 Create a lying DNS file for the specified format.
 Lies include: tracking, malware-related, advertizing sites and also sites that
 must not resolve, see below.
+Lies never include: TLDs or public suffixes, (see https://publicsuffix.org/)
   o -d: enable debug (set -x)
   o -f format: specify an output format.
     Supported formats are:
@@ -41,11 +42,14 @@ There are also a few domains that we MUST take care of:
     well intercept and modify that DNS request (made by the usual means) to
     return NXDOMAIN, thus degrading Firefox to classic DNS queries. WHICH IS THE
     EXACT SITUATION DoH WAS SUPPOSED TO PROTECT USERS FROM.
+  o We explicitly reject TLDs. If one of the input files contains a TLD, we will
+    ignore it: we intend to block bad domains, not the web in its entirety.
 
 SEE ALSO
 
   https://support.mozilla.org/en-US/kb/canary-domain-use-application-dnsnet
   https://news.ycombinator.com/item?id=22414912
+  https://publicsuffix.org/
 EOF
 }
 
@@ -93,6 +97,7 @@ _temp_dir="$(mktemp -d -t "$(basename "$0").XXXXXX")"
 _temp="$_temp_dir/hosts"
 _temp_ack="$_temp_dir/acks"
 _unresolve_regex="^($(echo "$_unresolve" | tr ' ' '|'))$"
+_public_suffix="$_temp_dir/tlds"
 
 __cleanup () {
   [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
@@ -111,6 +116,13 @@ __add_simple () {
   __download "$1" | grep -e '^[^\#]' >> "$_temp" || true
 }
 
+__create_public_suffix () {
+  printf '# The public suffix list was used https://publicsuffix.org\n' >> "$_temp_ack"
+  __download "https://publicsuffix.org/list/public_suffix_list.dat" |
+   # This file's has a specific syntax: https://publicsuffix.org/list/
+   grep -vE '^(//|$|!)' | grep -Eo '[^(^\*\.)].+' | sort > "$_public_suffix"
+}
+
 __to_unix () {
   # We remove weird characters
   tr -d '\r' < "$_temp" |
@@ -125,10 +137,10 @@ __to_unix () {
   grep -v '^localhost$' |
   # Ignore domains in $_unresolve too, they will be added later
   grep -vE "$_unresolve_regex" |
-  # We sort the file
   sort -u > "$_temp".2
-  # We replace the original file
-  mv "$_temp".2 "$_temp"
+  # Ignore lines that are a TLD or a public suffix
+  # comm(1) is insanely faster than any grep(1) or rg(1) here
+  comm -23 "$_temp".2 "$_public_suffix" > "$_temp"
 }
 
 __to_output () {
@@ -199,6 +211,8 @@ case "$_format" in
     __usage >&2 ; exit 1
   ;;
 esac
+
+__create_public_suffix
 
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt"
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt"
