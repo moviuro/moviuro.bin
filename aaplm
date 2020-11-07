@@ -5,10 +5,11 @@
 _number=1
 _season=1
 _dry_run=0
+_force=0
 
 __usage () {
   cat << EOH
-$0 [-k] [-e number] [-s number] [-d] source [source ...] destination/
+$0 [-kf] [-e number] [-s number] [-d] source [source ...] destination/
 
 Copy source file(s) to destination, try to guess what is what.
 If one source file exists in destination, we try to continue numbering files
@@ -19,6 +20,7 @@ Source files will be sorted alphabetically.
 Options:
   -d: debug info (set -x)
   -k: dry run, don't actually move files
+  -f: force, might overwrite files
   -e number: first number for the new episode, default: $_number
   -s number: new season number, default: previous season + 1, else $_season
 
@@ -55,6 +57,10 @@ __die () {
   exit "${2:-1}"
 }
 
+__warn () {
+  printf '%s\n' "$1" >&2
+}
+
 if command -v sha256 >/dev/null 2>&1; then
   __sha256 () {
     sha256 | grep -Eo '[0-9a-f]{64}$'
@@ -69,9 +75,10 @@ __quick_hash () {
   head -n1 < "$1" | __sha256
 }
 
-while getopts ":dike:s:" _opt; do
+while getopts ":dfike:s:" _opt; do
   case "$_opt" in
     d) set -x ;;
+    f) _force=1 ;;
     i) _interactive=1 ;;
     k) _dry_run=1 ;;
     e) _number="$OPTARG" ;;
@@ -116,13 +123,28 @@ __aaplmcp () {
   _s="${2}"
   _e="${3}"
   _ext="${1##*.}"
+  if [ "$_dry_run" -gt 0 ]; then
+    cp () {
+      echo cp "$@"
+    }
+  fi
   [ "$_s" -lt 10 ] && _s="0$_s"
   [ "$_e" -lt 10 ] && _e="0$_e"
+  _fdest="$_dest/s${_s}e${_e}.${_ext}"
   shift 3
-  if ((_dry_run)); then
-    echo cp -v "$@" -- "$_fp" "$_dest/s${_s}e${_e}.${_ext}"
+  if [ -e "$_fdest" ]; then
+    if [ "$_force" -gt 0 ]; then
+      printf "%s: %s\n" "Overwriting" "$_fdest" >&2
+      cp -v "$@" -- "$_fp" "$_fdest"
+    else
+      if [ "$_dry_run" -gt 0 ]; then
+        __warn "$_fdest exists and will not be overwritten"
+      else
+        __die "$_fdest exists" 7
+      fi
+    fi
   else
-    cp -v "$@" -- "$_fp" "$_dest/s${_s}e${_e}.${_ext}"
+    cp -v "$@" -- "$_fp" "$_fdest"
   fi
 }
 
