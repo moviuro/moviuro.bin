@@ -75,6 +75,14 @@ __quick_hash () {
   head -n1 < "$1" | __sha256
 }
 
+# Extract info from filename
+__season () {
+  grep -Eo '[sS][0-9]+' | grep -Eo '[^sS0]+[0-9]*'
+}
+__episode () {
+  grep -Eo '[eE][0-9]+' | grep -Eo '[^eE0]+[0-9]*'
+}
+
 while getopts ":dfike:s:" _opt; do
   case "$_opt" in
     d) set -x ;;
@@ -181,15 +189,19 @@ if [ "$n" -gt 0 ]; then
   # we extract from the last matching destination file its season and episode
   # number:
   if [ "$(wc -c < "$_latestdestfile")" -gt 0 ]; then
-    _season="$(grep -Eo '[sS][0-9]+[^/]+' "$_latestdestfile" | grep -Eo '[sS][0-9]+' |
-     sed -e 's/^[sS][0]*//')"
-    _number="$(grep -Eo '[eE][0-9]+[^/]+' "$_latestdestfile" | grep -Eo '[eE][0-9]+' |
-     sed -e 's/^[eE][0]*//')"
+    _season="$(__season < "$_latestdestfile")"
+    _number="$(__episode < "$_latestdestfile")"
     if ! [ "$_season" -ge 0 ] || ! [ "$_number" -ge 0 ]; then
       __die "season $_season and episode $_number look weird;\
        $_dest should contain files matching sXXeXX.ext" 6
     fi
     # Season is continued, whereas the next episode must be incremented
+    _number=$((_number + 1))
+  else
+    # There was no match: we're adding a new file, we continue the numbering
+    _last_episode_in_dest="$(find "$_dest" -type f | sort | tail -1)"
+    _season="$(printf '%s\n' "$_last_episode_in_dest" | __season)"
+    _number="$(printf '%s\n' "$_last_episode_in_dest" | __episode)"
     _number=$((_number + 1))
   fi
 else
