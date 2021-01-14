@@ -55,6 +55,9 @@ for _arch in amd64 i386 ; do
   __rel_torrent "https://cdimage.debian.org/debian-cd/current-live/$_arch/bt-hybrid/"
 done
 
+# devuan
+__magnet "https://www.devuan.org/get-devuan"
+
 # Ubuntu
 __abs_torrent 'https://ubuntu.com/download/alternative-downloads'
 
