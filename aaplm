@@ -174,13 +174,17 @@ if [ "$n" -gt 0 ]; then
     _h="$(__quick_hash "$f")"
     _matching_source="$(grep "$_h" "$_tmpfile" | cut -b66-)"
     if [ -n "$_matching_source" ]; then
-      # some info !
-      echo "$_matching_source is the same as $f" >&2
-      # we need that info
-      printf '%s\n' "$_matching_source" > "$_latestsourcefile"
-      printf '%s\n' "$f" > "$_latestdestfile"
-      # remove matches from the "hashmap" file
-      grep -v "$_h" < "$_tmpfile" > "$_tmpfile".2 ; mv "$_tmpfile".2 "$_tmpfile"
+      _f_size="$(du -s "$f" | grep -Eo '^[0-9]+')"
+      _ms_size="$(du -s "$_matching_source" | grep -Eo '^[0-9]+')"
+      if [ "$_f_size" = "$_ms_size" ]; then
+        # some info !
+        echo "$_matching_source is the same as $f" >&2
+        # we need that info
+        printf '%s\n' "$_matching_source" > "$_latestsourcefile"
+        printf '%s\n' "$f" > "$_latestdestfile"
+        # remove matches from the "hashmap" file
+        grep -v "$_h" < "$_tmpfile" > "$_tmpfile".2 ; mv "$_tmpfile".2 "$_tmpfile"
+      fi
     fi
   done
   # If at least one file in the destination matches with an input:
