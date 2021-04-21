@@ -220,6 +220,7 @@ __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_malware.txt"
 __add_simple "https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt"
 
 __add_simple "https://pgl.yoyo.org/adservers/serverlist.php?mimetype=plaintext&hostformat=plain"
+__add_simple "https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/dbl2.txt"
 
 __add_hosts "https://someonewhocares.org/hosts/zero/hosts" '0\.0\.0\.0'
 __add_hosts "http://winhelp2002.mvps.org/hosts.txt" '0\.0\.0\.0'
@@ -227,6 +228,8 @@ __add_hosts "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" \
   '0\.0\.0\.0'
 __add_hosts "https://www.malwaredomainlist.com/hostslist/hosts.txt" \
   '127\.0\.0\.1'
+__add_hosts "https://www.github.developerdan.com/hosts/lists/ads-and-tracking-extended.txt" \
+  '0\.0\.0\.0'
 
 __to_unix
 
