@@ -1,13 +1,17 @@
 #!/bin/sh
 
 set -e
+_allowlist="(10\.0\.0\.0/8|172\.16\.0\.0/12|192\.168\.0\.0/16)"
 
 __usage () {
   cat << EOF
-$0 [-d] [-o out]
+$0 [-d] [-a "allowlist"] [-o out]
 $0 -h
 
 Create a list of known-bad IPs, both IPv4 and IPv6
+  o -a "allowlist": regex allowlist (will be filtered out from the input files
+    and shouldn't land in the output)
+    Default: $_allowlist (RFC1918)
   o -d: enable debug (set -x)
   o -o out: specify an output file.
     Default: <stdout>
@@ -16,8 +20,9 @@ MAKE SURE THAT YOU ARE ALLOWED TO USE THE LISTS IN YOUR SITUATION
 EOF
 }
 
-while getopts ":dho:" _opt; do
+while getopts ":a:dho:" _opt; do
   case "$_opt" in
+    a) _allowlist="$OPTARG"   ;;
     d) set -x                 ;;
     h) __usage; exit 0        ;;
     o) _output_file="$OPTARG" ;;
@@ -82,6 +87,10 @@ __add () {
 __to_unix () {
   # We remove weird characters
   tr -d '\r' < "$_temp" |
+  # We remove the IPs in the allow list (required because some lists include the
+  # RFC1918 IPs: this makes sense on public-facing IPs, but for some cheap-o
+  # setups, that public-facing IP is also the administration IP...)
+  grep -vE "$_allowlist" |
   # We filter to only get IPs
   grep -Eo "($ipv4|$ipv6)" |
   # We sort the file
