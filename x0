@@ -8,7 +8,7 @@
 # The explanation of the following code is left as an exercise to the user
 
 __x0 () {
-    [ -z "$1" -o -r "$1" ] && curl -F "file=@${1:--};filetype=.txt" \
+    [ -z "$1" -o -r "$1" ] && curl -F "file=@${1:--}" \
       https://x0.at ||
       printf '$%s\n\n%s' "$*" "$("$@")" 2>&1 | __x0
 }
