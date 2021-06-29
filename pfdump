@@ -104,29 +104,38 @@ fi
 cd "$_out" || __die "Can't cd $_out" 3
 _today="$(date +"%Y-%m-%d.%s")"
 
-# Create the filter
-_GREP_OPTIONS="$(find . -name "$_table."'*' | sort -r | head -n "$_number" |
+# Create the filter; because grep(1) is slow, we use comm(1)
+_old_bruteforcers="$(mktemp)"
+
+__cleanup () {
+  [ -e "$_old_bruteforcers" ] && rm "$_old_bruteforcers"
+}
+trap __cleanup INT TERM
+
+find . -name "$_table."'*' | sort -r | head -n "$_number" |
   while IFS= read -r _f; do
-    printf ' -f %s' "$_f"
-  done
-)"
+    cat "$_f"
+  done | sort | > "$_old_bruteforcers"
 
 # Dump current data
-# We use || : because pfctl | grep -v could return nothing.
-#Maybe use grep's return code instead:
-#     0     One or more lines were selected.
-#     1     No lines were selected.
-#     >1    An error occurred.
-if [ -z "$_GREP_OPTIONS" ]; then
-  # No existing (history) files
-  pfctl -t "$_table" -T show > "$_table.$_today" || :
-else
-  pfctl -t "$_table" -T show | grep -v $_GREP_OPTIONS > "$_table.$_today" || :
-fi
+_todays_bruteforcers="$(mktemp)"
+
+__cleanup () {
+  [ -e "$_old_bruteforcers" ] && rm "$_old_bruteforcers"
+  [ -e "$_todays_bruteforcers" ] && rm "$_todays_bruteforcers"
+}
+
+pfctl -t "$_table" -T show | sort > "$_todays_bruteforcers"
+
+# By definition, "$_table.$_today" holds hosts that are "now" in the table, but
+# weren't in the past $_number files
+comm -13 "$_old_bruteforcers" "$_todays_bruteforcers" > "$_table.$_today"
 
 # Create the new list of hosts, and send it to pf
 pfctl -t "$_table" -T replace \
   $(find . -name "$_table."'*' | sort -r | head -n "$_number" | while IFS= read -r _f; do
     cat "$_f"
   done)
+
+__cleanup
 
