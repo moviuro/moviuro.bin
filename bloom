@@ -100,11 +100,11 @@ __abs_torrent "https://getsol.us/download/"
 
 # Parrot
 for _version in security home; do
-  __abs_torrent "https://www.parrotlinux.org/download-${_version}.php"
+  __abs_torrent "https://parrotsec.org/${_version}-edition/"
 done
 
 # lubuntu
-__magnet "https://lubuntu.me/downloads/"
+__abs_torrent "https://lubuntu.me/downloads/"
 
 # slackware
 # http://www.slackware.com/getslack/torrents.php is broken, not dealing with it
