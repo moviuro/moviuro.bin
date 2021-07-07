@@ -115,7 +115,7 @@ trap __cleanup INT TERM
 find . -name "$_table."'*' | sort -r | head -n "$_number" |
   while IFS= read -r _f; do
     cat "$_f"
-  done | sort | > "$_old_bruteforcers"
+  done | sort > "$_old_bruteforcers"
 
 # Dump current data
 _todays_bruteforcers="$(mktemp)"
