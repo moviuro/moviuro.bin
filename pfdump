@@ -132,10 +132,17 @@ pfctl -t "$_table" -T show | sort > "$_todays_bruteforcers"
 comm -13 "$_old_bruteforcers" "$_todays_bruteforcers" > "$_table.$_today"
 
 # Create the new list of hosts, and send it to pf
-pfctl -t "$_table" -T replace \
-  $(find . -name "$_table."'*' | sort -r | head -n "$_number" | while IFS= read -r _f; do
-    cat "$_f"
-  done)
+_last_n_days_bruteforcers="$(mktemp)"
+__cleanup () {
+  [ -e "$_old_bruteforcers" ] && rm "$_old_bruteforcers"
+  [ -e "$_todays_bruteforcers" ] && rm "$_todays_bruteforcers"
+  [ -e "$_last_n_days_bruteforcers" ] && rm "$_last_n_days_bruteforcers"
+}
 
+find . -name "$_table."'*' | sort -r | head -n "$_number" | while IFS= read -r _f; do
+  cat "$_f"
+done > "$_last_n_days_bruteforcers"
+
+pfctl -t "$_table" -T replace -f "$_last_n_days_bruteforcers"
 __cleanup
 
