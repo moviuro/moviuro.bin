@@ -104,13 +104,15 @@ fi
 cd "$_out" || __die "Can't cd $_out" 3
 _today="$(date +"%Y-%m-%d.%s")"
 
-# Create the filter; because grep(1) is slow, we use comm(1)
-_old_bruteforcers="$(mktemp)"
-
+_tmp_dir="$(mktemp -d)"
 __cleanup () {
-  [ -e "$_old_bruteforcers" ] && rm "$_old_bruteforcers"
+  [ -d "$_tmp_dir" ] && rm -r "$_tmp_dir"
 }
+
 trap __cleanup INT TERM
+
+# Create the filter; because grep(1) is slow, we use comm(1)
+_old_bruteforcers="$_tmp_dir/old_brutes"
 
 find . -name "$_table."'*' | sort -r | head -n "$_number" |
   while IFS= read -r _f; do
@@ -118,12 +120,7 @@ find . -name "$_table."'*' | sort -r | head -n "$_number" |
   done | sort > "$_old_bruteforcers"
 
 # Dump current data
-_todays_bruteforcers="$(mktemp)"
-
-__cleanup () {
-  [ -e "$_old_bruteforcers" ] && rm "$_old_bruteforcers"
-  [ -e "$_todays_bruteforcers" ] && rm "$_todays_bruteforcers"
-}
+_todays_bruteforcers="$_tmp_dir/todays_brutes"
 
 pfctl -t "$_table" -T show | sort > "$_todays_bruteforcers"
 
@@ -132,12 +129,7 @@ pfctl -t "$_table" -T show | sort > "$_todays_bruteforcers"
 comm -13 "$_old_bruteforcers" "$_todays_bruteforcers" > "$_table.$_today"
 
 # Create the new list of hosts, and send it to pf
-_last_n_days_bruteforcers="$(mktemp)"
-__cleanup () {
-  [ -e "$_old_bruteforcers" ] && rm "$_old_bruteforcers"
-  [ -e "$_todays_bruteforcers" ] && rm "$_todays_bruteforcers"
-  [ -e "$_last_n_days_bruteforcers" ] && rm "$_last_n_days_bruteforcers"
-}
+_last_n_days_bruteforcers="$_tmp_dir/last_ndays_brutes"
 
 find . -name "$_table."'*' | sort -r | head -n "$_number" | while IFS= read -r _f; do
   cat "$_f"
