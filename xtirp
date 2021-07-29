@@ -1,0 +1,43 @@
+#!/bin/sh
+
+set -e
+
+if ! command -v bsdtar >/dev/null 2>&1; then
+  echo "Do yourself a favor, install bsdtar(1)" >&2
+  exit 1
+fi
+
+__usage() {
+  cat << EOH
+$0 archive [dest]
+
+Deflate an archive using bsdtar(1):
+
+% $0 ~/something/far/foo.zip
+% ls
+foo/
+EOH
+}
+
+case "$1" in
+  -h) __usage && exit 0 ;;
+  *.tar.??|*.tar.???) dest="${1%.*}";; # Tar archive have a double extension
+esac
+
+[ -z "$1" ] && __usage >&2 && exit 1
+
+if [ -z "$2" ]; then
+  : "${dest:="$1"}"
+  dest="${dest%.*}"
+  dest="${dest##*/}"
+else
+  dest="$2"
+fi
+
+! [ -e "$dest" ] && mkdir "$dest"
+
+case "$1" in
+  # RAR truly is a PITA
+  *.rar) cd "$dest" && unrar x "$1" ;;
+  *)     bsdtar xvf "$1" -C "$dest" ;;
+esac
