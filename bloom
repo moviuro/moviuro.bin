@@ -31,6 +31,16 @@ __abs_torrent () {
   __download "$1" | grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent'
 }
 
+__root_torrent () {
+  _domain="$(printf '%s\n' "$1" | grep -Eo 'https?://[^/]+')"
+  __download "$1" |
+   grep -Eo 'href="[^"]+\.torrent' |
+   grep -Eo '[^"]+\.torrent' |
+   while read -r _root_link; do
+     printf '%s/%s\n' "$_domain" "$_root_link"
+   done
+}
+
 # We find relative links to the torrents and generate an absolute link
 __rel_torrent () {
   _page="$1"
@@ -107,4 +117,4 @@ done
 __abs_torrent "https://lubuntu.me/downloads/"
 
 # slackware
-# http://www.slackware.com/getslack/torrents.php is broken, not dealing with it
+__root_torrent "http://www.slackware.com/getslack/torrents.php"
