@@ -50,6 +50,7 @@ else
   if [ -z "$sunrise" ] || [ -z "$sunset" ] || [ -z "$civil_twilight_begin" ] ||
     [ -z "$civil_twilight_end" ]; then
     echo "Missing value(s) in $myfile!" >&2
+    mv "$myfile" "$myfile".broken
     exit 4
   fi
   if man date 2>&1 | grep -q GNU; then
