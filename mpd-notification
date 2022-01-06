@@ -1,0 +1,14 @@
+#!/bin/sh
+
+: "${_music_dir:="$HOME/Music"}"
+: "${TMPDIR:=/tmp}"
+
+_tmp_picture="$(mktemp -p "$TMPDIR" music-XXXXXX.png)"
+
+if ffmpeg -y -i "$_music_dir/$(mpc current -f %file%)" "$_tmp_picture" \
+ >/dev/null 2>&1; then
+  notify-send -i "$_tmp_picture" MPD "$(mpc status | head -2)"
+else
+  notify-send MPD "$(mpc status | head -2)"
+fi
+rm "$_tmp_picture"
