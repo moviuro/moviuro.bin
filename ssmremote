@@ -1,0 +1,273 @@
+#!/bin/sh
+
+# ssmremote - simple stupid media remote
+# It will play/pause mpv and mpc/mpd, depending on current status
+
+# mpv(1) does not allow remote control by default. I'm using mpvSockets:
+# https://github.com/wis/mpvSockets
+
+: "${TMPDIR:=/tmp}"
+: "${_mpvsdir:="$TMPDIR"/mpvSockets}"
+
+__usage() {
+  cat << EOH
+$0 is a simple stupid media remote that will try to execute the current
+command to the focused mpv(1) window if applicable, or mpd(1) otherwise.
+
+$0 [-d] next|prev|next-chapter|prev-chapter|toggle|pause
+$0 -h
+
+Flags:
+  -h: this help text
+  -d: debug output (set -x)
+
+Commands:
+  next|prev: if mpv(1) is playing, send playlist-next or playlist-prev (this
+             might do nothing if you reached the end of the playlist); else if
+             mpv(1) has focus, send playlist-next or playlist-prev; else send to
+             mpd(1)
+
+  next-chapter|prev-chapter: if mpv(1) is playing, add or remove one chapter
+             (this might do nothing if you reached the first or last chapter);
+             else if mpv(1) has focus, add or remove one chapter; else send
+             next|prev to mpd(1)
+
+  pause: pause all mpv(1) instances and mpd(1)
+
+  toggle: if something is playing, pause everything; else start the current
+             mpv(1) that has focus or mpd(1)
+EOH
+}
+
+while getopts ":dh" _opt; do
+  case "$_opt" in
+    d) set -x ;;
+    h) __usage ; exit 0 ;;
+    *) __usage >&2 ; exit 1 ;;
+  esac
+done
+
+shift "$((OPTIND - 1))"
+
+__exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+__error() {
+  printf '%s\n' "$1" >&2
+}
+
+__die() {
+  __error "${1:-"unspecified error"}"
+  exit "${2:-10}"
+}
+
+for _cmd in jq mpc ncat; do
+  __exists "$_cmd" || __die "$_cmd not found" 2
+done
+
+# pause everything, return number of failed pauses
+__pause() {
+  _ret="$(find "$_mpvsdir" -type s | while IFS='' read -r _socket; do
+           __mpv_command '"set_property", "pause", true' "$_socket" |
+            jq -r .error
+          done | grep -cv success
+  )"
+  mpc -q pause || _ret="$((_ret + 1))"
+  return "$_ret"
+}
+
+# return a PID if a mpv(1) window has focus, or NULL (nothing)
+# see https://superuser.com/questions/382616/detecting-currently-active-window
+__mpv_with_focus_or_null() {
+  _wid="$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)"
+  case "$_wid" in
+    "0x0") : ;; # no window has focus
+    *) if xprop -id "$_wid" WM_CLASS | grep -q '"mpv"'; then
+         xprop -id "$_wid" _NET_WM_PID | grep -Eo '[0-9]+$'
+       else
+         :
+       fi ;;
+  esac
+}
+
+__mpv_command() {
+  _pid="${2:?"__mpv_command requires a command and a PID or socket"}"
+  if [ -S "$2" ]; then
+    _socket="$2"
+  else
+    _socket="$_mpvsdir/$2"
+  fi
+  if [ -S "$_socket" ]; then
+    printf '{ "command" : [ %s ]}\n' "$1" | ncat -U "$_socket"
+  else
+    __error "$_socket is not a socket!"
+  fi
+}
+
+__mpv_command_data() {
+  __mpv_command "$1" "$2" | jq --raw-output --exit-status .data
+}
+
+# return a PID if a mpv(1) window is playing, or NULL (nothing)
+__mpv_playing_or_null() {
+  find "$_mpvsdir" -type s | while IFS='' read -r _socket; do
+     if __mpv_command '"get_property", "pause"' "$_socket" |
+      jq --exit-status 'select(.data==false)' >/dev/null;
+     then
+      _maybe_pid="${_socket##*/}"
+      if ps -p "${_maybe_pid}" >/dev/null 2>&1; then
+        echo "${_maybe_pid}"
+      else
+        __die "$_socket is a valid socket but $_maybe_pid is not a PID"
+      fi
+      break
+    fi
+  done
+}
+
+__mpd_playing() {
+  [ "$(mpc status %state%)" = "playing" ]
+}
+
+__playlist() {
+  case "$1" in
+    next|prev) : ;;
+    *) __die "__playlist() requires next or prev as argument" 3 ;;
+  esac
+  _pid="$(__mpv_playing_or_null)"
+  : "${_pid:="$(__mpv_with_focus_or_null)"}"
+  case "$_pid" in
+    '') mpc -q "$1" ;;
+    *) if __mpv_command "$(printf '"playlist-%s", "weak"' "$1")" "$_pid" |
+        jq -r .error | grep -v success; then
+         return 1
+       else
+         return 0
+       fi
+  esac
+}
+
+__wait_until_seekable () {
+  _pid="$1"
+  _deadline="$(( "$(date +%s)" + 5))"
+  while ! __mpv_command_data '"get_property","duration"' "$_pid" \
+   >/dev/null 2>&1; do
+    [ "$(date +%s)" -gt "$_deadline" ] && __die "timeout waiting for $_pid" 7
+  done
+}
+
+__mpv_goto_last_chapter () { # (or do nothing)
+  _pid="$1"
+  _c="$(__mpv_command_data '"get_property","chapters"' "$_pid")"
+  case "$_c" in
+    0|1) : ;; # no chapters, mpv(1) should have put us at the start of the file
+    *)  if __mpv_command \
+         "$(printf '"set_property","chapter","%s"\n' "$((_c -1))" )" \
+         "$_pid" | jq .error | grep -qv success ; then
+          return 1
+        else
+          return 0
+        fi ;;
+  esac
+}
+
+__chapter() {
+  case "$1" in
+    next) _v="1"  ;;
+    prev) _v="-1" ;;
+    *) __die "__chapter() requires next or prev as argument" 5 ;;
+  esac
+  # _pid is: * 0 if mpd is playing
+  #          * a real PID if one mpv is currently playing or if nothing is playing
+  #            AND we focus a mpv window
+  #          * empty if nothing is playing
+  _pid="$(__mpv_playing_or_null)"
+  __mpd_playing && : "${_pid:=0}"
+  : "${_pid:="$(__mpv_with_focus_or_null)"}"
+  case "$_pid" in
+    ''|0) mpc -q "$1" ;;
+    *) # Chapter manipulation on files that have none is completely broken with
+       # no sane defaults on mpv(1). Buckle up.
+       _c="$(__mpv_command_data '"get_property","chapters"' "$_pid")"
+       # _curc is "null" for files with no chapters
+       _curc="$(__mpv_command_data '"get_property","chapter"' "$_pid")"
+       _curp="$(__mpv_command_data '"get_property","playlist-pos"' "$_pid")"
+       # is time position greater than chapter-seek-threshold?
+       # no=empty; yes=non-empty
+       _cst="$(__mpv_command_data '"get_property","chapter-seek-threshold"' "$_pid")"
+       _tpgtcst="$(__mpv_command '"get_property","time-pos"' "$_pid" | jq "select(.data > $_cst)")"
+       if [ "$_curc" != "null" ]; then
+         # there are chapters in the current file
+         if [ -n "$_tpgtcst" ] || [ "$1" = "next" ]; then
+           # if we passed _cst, chapters work as expected (we will not be going
+           # back one file in the playlist)
+           # if we use "next-chapter", it works as expected (including the cases
+           # where we reach the end of the file or the end of the playlist)
+           __mpv_command "$(printf '"add", "chapter","%s"\n' "$_v")" "$_pid"
+         elif [ "$_curp" -eq 0 ]; then
+           # we are going back one chapter and we are at the very beginning of
+           # the playlist: we jump to time-pos 0
+           __mpv_command '"set_property","time-pos",0' "$_pid"
+         else
+           # we are going back in the playlist but we want to jump to the last
+           # chapter of that previous file
+           __playlist prev
+           __wait_until_seekable "$_pid"
+           # we jump to the beginning of the last chapter if it exists
+           __mpv_goto_last_chapter "$_pid"
+         fi
+       else # the current file has no chapters
+         if [ "$_curp" -eq 0 ] && [ "$1" = prev ]; then
+           __mpv_command '"set_property","time-pos",0' "$_pid"
+         elif [ "$1" = next ] ; then   # next chapter = next file
+           __playlist "$1"
+         elif [ -z "$_tpgtcst" ]; then
+           # we are not at the beginning of the playlist, we want prev chapter
+           # and we have not passed _cst; we jump to last chater of the previous
+           # file
+           __playlist "$1"
+           __wait_until_seekable "$_pid"
+           __mpv_goto_last_chapter "$_pid"
+         else
+           # we have passed _cst, so the previous chapter is actually the
+           # beginning of the current file
+           __mpv_command '"set_property","time-pos",0' "$_pid"
+         fi
+       fi ;;
+  esac
+}
+
+__toggle() {
+  _pid="$(__mpv_playing_or_null)"
+  case "$_pid" in
+    '') # no mpv is playing
+      case "$(mpc status %state%)" in
+        "paused")  # nothing is running!
+          _pid="$(__mpv_with_focus_or_null)"
+          case "$_pid" in
+            '') mpc play ;;
+            *) if __mpv_command '"set_property", "pause", false' "$_pid" |
+                jq -r .error | grep -v success; then
+                 return 1
+               else
+                 return 0
+               fi ;;
+          esac
+          ;;
+        "playing") mpc pause ;;
+      esac
+      ;;
+    *)  # mpv is playing, we pause everything
+      __pause ;;
+  esac
+}
+
+case "$1" in
+  toggle) __toggle ; exit $? ;;
+  next)   __playlist "next" ; exit $? ;;
+  prev)   __playlist "prev" ; exit $? ;;
+  next-chapter) __chapter "next" ; exit $? ;;
+  prev-chapter) __chapter "prev" ; exit $? ;;
+  pause)  __pause ; exit $? ;;
+esac
