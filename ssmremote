@@ -36,6 +36,18 @@ Commands:
 
   toggle: if something is playing, pause everything; else start the current
              mpv(1) that has focus or mpd(1)
+
+  store|restore: save the current status of mpv(1) instances and mpd(1) in
+             TMPDIR, overwriting any existing file; restore will only re-start
+             the instances that were previously saved as "playing".
+             These commands are intended to be used during machine lock or IRL
+             interruptions:
+             % $0 store
+             % $0 pause
+             % [...]
+             % $0 restore
+
+  isplaying: returns 0 if one mpv(1) or mpd(1) is playing
 EOH
 }
 
@@ -65,6 +77,19 @@ __die() {
 for _cmd in jq mpc ncat; do
   __exists "$_cmd" || __die "$_cmd not found" 2
 done
+
+__mpd_playing() {
+  [ "$(mpc status %state%)" = "playing" ]
+}
+
+__isplaying() {
+  find "$_mpvsdir" -type s | while IFS='' read -r _socket; do
+    printf "%s:%s\n" \
+     "$_socket" \
+     "$(__mpv_command_data '"get_property", "pause"' "$_socket")"
+  done | grep -q "false" ||
+   __mpd_playing
+}
 
 # pause everything, return number of failed pauses
 __pause() {
@@ -124,10 +149,6 @@ __mpv_playing_or_null() {
       break
     fi
   done
-}
-
-__mpd_playing() {
-  [ "$(mpc status %state%)" = "playing" ]
 }
 
 __playlist() {
@@ -263,6 +284,36 @@ __toggle() {
   esac
 }
 
+__store() {
+  _tmp="$TMPDIR/$(basename "$0")"
+  touch "$_tmp" || __die "couldn't create $_tmp"
+  find "$_mpvsdir" -type s | while IFS='' read -r _socket; do
+    printf "%s:%s\n" \
+     "$_socket" \
+     "$(__mpv_command_data '"get_property", "pause"' "$_socket")"
+  done > "$_tmp"
+  printf "%s:%s\n" \
+   "mpd" \
+   "$(mpc status %state%)" >> "$_tmp"
+}
+
+__restore() {
+  _tmp="$TMPDIR/$(basename "$0")"
+  [ -e "$_tmp" ] || __die "no state to restore from $_tmp"
+  while IFS=':' read -r _pid _state; do
+    case "$_pid" in
+      mpd)
+        case "$_state" in
+          playing) mpd -q play ;;
+        esac ;;
+      *)
+        case "$_state" in
+          false) __mpv_command '"set_property", "pause", false' "$_pid" ;;
+        esac ;;
+    esac
+  done < "$_tmp"
+}
+
 case "$1" in
   toggle) __toggle ; exit $? ;;
   next)   __playlist "next" ; exit $? ;;
@@ -270,4 +321,7 @@ case "$1" in
   next-chapter) __chapter "next" ; exit $? ;;
   prev-chapter) __chapter "prev" ; exit $? ;;
   pause)  __pause ; exit $? ;;
+  store) __store ; exit $? ;;
+  restore) __restore ; exit $? ;;
+  isplaying) __isplaying ; exit $? ;;
 esac
