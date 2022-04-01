@@ -74,7 +74,7 @@ __die() {
   exit "${2:-10}"
 }
 
-for _cmd in jq mpc ncat; do
+for _cmd in jq mpc ncat openssl; do
   __exists "$_cmd" || __die "$_cmd not found" 2
 done
 
@@ -124,7 +124,16 @@ __mpv_command() {
     _socket="$_mpvsdir/$2"
   fi
   if [ -S "$_socket" ]; then
-    printf '{ "command" : [ %s ]}\n' "$1" | ncat -U "$_socket"
+    while [ -z "$_rid" ] || [ "$_rid" -eq 0 ] ; do
+      # - no $RANDOM in FreeBSD's sh
+      # - we can't use $$ because we could use the same socket multiple times
+      #   in the same call to our script, and we really shouldn't mix up
+      #   outputs!
+      # - openssl could output `0` or tr(1) could remove all output
+      _rid="$(openssl rand -base64 10 | tr '[A-J]' '[0-9]' | tr -dc '[0-9]')"
+    done
+    printf '{ "command" : [ %s ] , "request_id" : %s}\n' "$1" "$_rid" |
+     ncat -U "$_socket" | jq "select( .request_id == $_rid )"
   else
     __error "$_socket is not a socket!"
   fi
