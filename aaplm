@@ -167,53 +167,53 @@ done
 cd - >/dev/null 2>&1
 
 if [ -z "$_supplied" ]; then
-if [ "$n" -gt 0 ]; then
-  # There are files in the destination
-  # We find all files in the destination and sort them; for each we try to see
-  # if it is among the source files (comparing hashes in $_tmpfile)
-  find "$_dest" -type f | sort | while IFS=' ' read -r f; do
-    _h="$(__quick_hash "$f")"
-    _matching_source="$(grep "$_h" "$_tmpfile" | cut -b66-)"
-    if [ -n "$_matching_source" ]; then
-      _f_size="$(du -s "$f" | grep -Eo '^[0-9]+')"
-      _ms_size="$(du -s "$_matching_source" | grep -Eo '^[0-9]+')"
-      if [ "$_f_size" = "$_ms_size" ]; then
-        # some info !
-        echo "$_matching_source is the same as $f" >&2
-        # we need that info
-        printf '%s\n' "$_matching_source" > "$_latestsourcefile"
-        printf '%s\n' "$f" > "$_latestdestfile"
-        # remove matches from the "hashmap" file
-        grep -v "$_h" < "$_tmpfile" > "$_tmpfile".2 ; mv "$_tmpfile".2 "$_tmpfile"
+  if [ "$n" -gt 0 ]; then
+    # There are files in the destination
+    # We find all files in the destination and sort them; for each we try to see
+    # if it is among the source files (comparing hashes in $_tmpfile)
+    find "$_dest" -type f | sort | while IFS=' ' read -r f; do
+      _h="$(__quick_hash "$f")"
+      _matching_source="$(grep "$_h" "$_tmpfile" | cut -b66-)"
+      if [ -n "$_matching_source" ]; then
+        _f_size="$(du -s "$f" | grep -Eo '^[0-9]+')"
+        _ms_size="$(du -s "$_matching_source" | grep -Eo '^[0-9]+')"
+        if [ "$_f_size" = "$_ms_size" ]; then
+          # some info !
+          echo "$_matching_source is the same as $f" >&2
+          # we need that info
+          printf '%s\n' "$_matching_source" > "$_latestsourcefile"
+          printf '%s\n' "$f" > "$_latestdestfile"
+          # remove matches from the "hashmap" file
+          grep -v "$_h" < "$_tmpfile" > "$_tmpfile".2 ; mv "$_tmpfile".2 "$_tmpfile"
+        fi
       fi
+    done
+    # If at least one file in the destination matches with an input:
+    # _latestdestfile now contains the path to the last matching dest file
+    # _latestsourcefile now contains the path to the last matched source file
+    # we extract from the last matching destination file its season and episode
+    # number:
+    if [ "$(wc -c < "$_latestdestfile")" -gt 0 ]; then
+      _season="$(__season < "$_latestdestfile")"
+      _number="$(__episode < "$_latestdestfile")"
+      if ! [ "$_season" -ge 0 ] || ! [ "$_number" -ge 0 ]; then
+        __die "season $_season and episode $_number look weird;\
+         $_dest should contain files matching sXXeXX.ext" 6
+      fi
+      # Season is continued, whereas the next episode must be incremented
+      _number=$((_number + 1))
+    else
+      # There was no match: we're adding a new file, we continue the numbering
+      _last_episode_in_dest="$(find "$_dest" -type f | sort | tail -1)"
+      _season="$(printf '%s\n' "$_last_episode_in_dest" | __season)"
+      _number="$(printf '%s\n' "$_last_episode_in_dest" | __episode)"
+      _number=$((_number + 1))
     fi
-  done
-  # If at least one file in the destination matches with an input:
-  # _latestdestfile now contains the path to the last matching dest file
-  # _latestsourcefile now contains the path to the last matched source file
-  # we extract from the last matching destination file its season and episode
-  # number:
-  if [ "$(wc -c < "$_latestdestfile")" -gt 0 ]; then
-    _season="$(__season < "$_latestdestfile")"
-    _number="$(__episode < "$_latestdestfile")"
-    if ! [ "$_season" -ge 0 ] || ! [ "$_number" -ge 0 ]; then
-      __die "season $_season and episode $_number look weird;\
-       $_dest should contain files matching sXXeXX.ext" 6
-    fi
-    # Season is continued, whereas the next episode must be incremented
-    _number=$((_number + 1))
   else
-    # There was no match: we're adding a new file, we continue the numbering
-    _last_episode_in_dest="$(find "$_dest" -type f | sort | tail -1)"
-    _season="$(printf '%s\n' "$_last_episode_in_dest" | __season)"
-    _number="$(printf '%s\n' "$_last_episode_in_dest" | __episode)"
-    _number=$((_number + 1))
+    # There are no files in the destination: we use either supplied -n and -s or 1
+    # Alphabetical sort
+    :
   fi
-else
-  # There are no files in the destination: we use either supplied -n and -s or 1
-  # Alphabetical sort
-  :
-fi
 fi
 
 while IFS=' ' read -r _ _fullpath; do
