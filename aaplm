@@ -89,8 +89,8 @@ while getopts ":dfike:s:" _opt; do
     f) _force=1 ;;
     i) _interactive=1 ;;
     k) _dry_run=1 ;;
-    e) _number="$OPTARG" ;;
-    s) _season="$OPTARG" ;;
+    e) _number="$OPTARG" ; _supplied="1" ;;
+    s) _season="$OPTARG" ; _supplied="1" ;;
     *) __die "$(__usage)" 2 ;;
   esac
 done
@@ -166,6 +166,7 @@ for f in * .[!.]* ..?*; do
 done
 cd - >/dev/null 2>&1
 
+if [ -z "$_supplied" ]; then
 if [ "$n" -gt 0 ]; then
   # There are files in the destination
   # We find all files in the destination and sort them; for each we try to see
@@ -212,6 +213,7 @@ else
   # There are no files in the destination: we use either supplied -n and -s or 1
   # Alphabetical sort
   :
+fi
 fi
 
 while IFS=' ' read -r _ _fullpath; do
