@@ -7,10 +7,12 @@
 
 # The explanation of the following code is left as an exercise to the user
 
+[ "$(id -u )" -gt 0 ] && p='%' || p='#'
+
 __x0 () {
     [ -z "$1" -o -r "$1" ] && curl -F "file=@${1:--}" \
       https://x0.at ||
-      printf '$%s\n\n%s' "$*" "$("$@")" 2>&1 | __x0
+      printf '%s %s\n\n%s' "$p" "$*" "$("$@")" 2>&1 | __x0
 }
 
 __x0 "$@"

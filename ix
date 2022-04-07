@@ -7,9 +7,11 @@
 
 # The explanation of the following code is left as an exercise to the user
 
+[ "$(id -u)" -gt 0 ] && p='%' || p='#'
+
 __ix () {
     [ -z "$1" -o -r "$1" ] && curl -F "f:1=<${1:--}" ix.io ||
-      printf '$%s\n\n%s' "$*" "$("$@")" 2>&1 | __ix
+      printf '%s %s\n\n%s' "$p" "$*" "$("$@")" 2>&1 | __ix
 }
 
 __ix "$@"

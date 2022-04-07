@@ -7,9 +7,11 @@
 
 # The explanation of the following code is left as an exercise to the user
 
+[ "$(id -u)" -gt 0 ] && p='%' || p='#'
+
 __sprunge () {
     [ -z "$1" -o -r "$1" ] && curl -F "sprunge=<${1:--}" sprunge.us ||
-      printf '$%s\n\n%s' "$*" "$("$@")" 2>&1 | __sprunge
+      printf '%s %s\n\n%s' "$p" "$*" "$("$@")" 2>&1 | __sprunge
 }
 
 __sprunge "$@"
