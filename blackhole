@@ -121,6 +121,7 @@ __add "https://rules.emergingthreats.net/blockrules/compromised-ips.txt"
 __add "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
 __add "https://raw.githubusercontent.com/ktsaou/blocklist-ipsets/master/firehol_level1.netset"
 __add "https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt"
+__add "https://lists.blocklist.de/lists/all.txt"
 
 __to_unix
 
