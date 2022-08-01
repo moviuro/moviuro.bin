@@ -130,7 +130,10 @@ __mpv_command() {
       #   in the same call to our script, and we really shouldn't mix up
       #   outputs!
       # - openssl could output `0` or tr(1) could remove all output
-      _rid="$(openssl rand -base64 10 | tr '[A-J]' '[0-9]' | tr -dc '[0-9]')"
+      # - if _rid starts with ^0 then sh could consider it to be base8... TODO
+      _rid="$(openssl rand -base64 10 |
+              tr 'A-J' '0-9' | tr -dc '0-9' |
+              grep -v '^0')"
     done
     printf '{ "command" : [ %s ] , "request_id" : %s}\n' "$1" "$_rid" |
      ncat -U "$_socket" | jq "select( .request_id == $_rid )"
