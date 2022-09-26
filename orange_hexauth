@@ -1,0 +1,89 @@
+#!/bin/sh
+
+# Heavily inspired by https://lafibre.info/remplacer-livebox/tuto-remplacer-la-livebox-par-un-routeur-dd-wrt-internet-tv/
+
+__usage(){
+  cat << EOH
+$0 [-h]
+
+$0 creates a hex stream (that is not \\n terminated) that can be used in DHCP
+clients (v4 and v6) to authenticate to Orange France's network. The hex stream
+is intended to be cat(1)-ed with configuration parts to create a complete file
+(such as dhclient.conf(5)).
+
+-h : display this help text
+
+ENVIRONMNENT VARIABLES
+
+You MUST specify FTI_USER and FTI_PASS as written in your (paper) contract with
+Orange.
+
+EXAMPLES
+
+In crontab:
+
+  FTI_USER=fti/...
+  FTI_PASS=...
+
+  ~ 1 * * 0 $0 > /etc/orange_auth_string
+  ~ 2 * * 0 cat /etc/dhclient.conf.head /etc/orange_auth_string /etc/dhclient.conf.tail > /etc/dhclient.conf
+  ~ 3 * * 0 dhclient vlan832
+
+CAVEATS
+
+Only tested on OpenBSD
+EOH
+}
+
+while getopts ':h' _opt; do
+  case "$_opt" in
+    h) __usage ; exit 0 ;;
+    *) __usage >&2 ; exit 1 ;;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
+: "${FTI_USER?"Missing mandatory variable, see $0 -h"}"
+: "${FTI_PASS?"Missing mandatory variable, see $0 -h"}"
+
+if ! command -v openssl >/dev/null 2>&1; then
+  echo "openssl(1) was no found. WTF?" >&2
+  exit 2
+fi
+
+if ! command -v md5 >/dev/null 2>&1; then
+  md5() {
+    openssl md5 | cut -d' ' -f2
+  }
+fi
+
+# translates individual characters to their hex counterpart and prefixes each
+# with `:`
+# __tohex foo
+# > :66:6f:6f
+__tohex() {
+  printf '%s' "$1" | hexdump -ve '1/1 ":%.2x"'
+}
+
+case "$FTI_USER" in
+  fti/*) : ;;
+  *) FTI_USER="fti/$FTI_USER" ;;
+esac
+
+# random strings
+# let's hope this never changes, because if Orange starts using "predictable"
+# strings, we're in deep (think: TOTP)
+: "${_r:="$(openssl rand -base64 12)"}"
+: "${_c:="$(openssl rand -base64 1 | cut -c 1)"}"
+# "header"
+_o90="1a:09:00:00:05:58:01:03:41"
+_o90="$_o90:01:0d$(__tohex "$FTI_USER")"
+_o90="$_o90:3c:12$(__tohex "$_r")"
+_o90="$_o90:03:13$(__tohex "$_c")"
+_o90="$_o90$(printf '%s' "$_c$FTI_PASS$_r" | md5 | sed 's/\(..\)/:\1/g')"
+
+cat << EOM >&2
+Generated on $(date) with _r=$_r and _c=$_c
+EOM
+echo -n "${_o90}"
