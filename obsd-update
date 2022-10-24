@@ -23,7 +23,7 @@ __verify () {
 __dl () {
   __status "Downloading $1 for ${_rel} ${_arch}"
   ftp -o "$1" \
-   "https://mirrors.evowise.com/pub/OpenBSD/${_rel}/${_arch}/$1" \
+   "$(cat /etc/installurl)/${_rel}/${_arch}/$1" \
    >/dev/null
 }
 
