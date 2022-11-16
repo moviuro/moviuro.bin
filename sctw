@@ -7,13 +7,19 @@
 # sctw is a sct wrapper
 # takes $SCTW_LAT $SCTW_LNG for position, and calculates a comfortable screen
 # temperature at the time it's run.
-# requires curl(1), jq(1)
+# requires curl(1), jq(1), xrandr(1)
 
 myname="$(basename "$0")"
 today="$(date "+%Y-%m-%d")"
 
+: "${DISPLAY=":0"}"
 : "${SCTW_CONFIG:="${XDG_CONFIG_HOME:=$HOME/.config}/$myname.rc"}"
 : "${TMPDIR:="${XDG_RUNTIME_DIR:="/tmp"}"}"
+
+if ! xrandr > /dev/null 2>&1 ; then
+  echo "Can't find a display: $DISPLAY; bailing out" >&2
+  exit 2
+fi
 
 _values="sunrise sunset civil_twilight_begin civil_twilight_end"
 
