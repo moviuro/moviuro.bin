@@ -1,0 +1,286 @@
+#!/bin/sh
+
+set -e
+
+_target="127.0.0.1"
+_ignore="use-application-dns.net"
+_myname=${0##*/}
+_input="bad!https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
+bad!https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt
+bad!https://s3.amazonaws.com/lists.disconnect.me/simple_malware.txt
+bad!https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt
+bad!https://pgl.yoyo.org/adservers/serverlist.php?mimetype=plaintext&hostformat=plain
+bad!https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/dbl2.txt
+nsfw!https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/dbl_nsfw.txt
+bad!https://someonewhocares.org/hosts/zero/hosts!0.0.0.0
+bad!https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts!0.0.0.0
+bad!https://www.github.developerdan.com/hosts/lists/ads-and-tracking-extended.txt!0.0.0.0
+nsfw!https://raw.githubusercontent.com/blocklistproject/Lists/master/porn.txt!0.0.0.0
+bad!https://raw.githubusercontent.com/blocklistproject/Lists/master/ransomware.txt!0.0.0.0
+bad!https://raw.githubusercontent.com/blocklistproject/Lists/master/phishing.txt!0.0.0.0
+bad!https://raw.githubusercontent.com/blocklistproject/Lists/master/malware.txt!0.0.0.0
+bad!https://raw.githubusercontent.com/blocklistproject/Lists/master/tracking.txt!0.0.0.0
+gambling!https://raw.githubusercontent.com/blocklistproject/Lists/master/gambling.txt!0.0.0.0"
+
+__usage () {
+  cat << EOF
+$_myname [-d] [-o out] [-i "domain [domain [...]]"] [tag!URL[!IP][(^|\\n)tag!URL[!IP]...]]
+$_myname -h
+
+Create lying DNS files for unbound, using the power of tags (unbound >= 1.16).
+Tags can then be used to define specific resolving rules, see example below.
+Lies are tagged:
+  o bad (incl. ads, malware and malvertizing)
+  o nsfw
+  o gambling
+Lies never include: TLDs, localhost or public suffixes, (see
+https://publicsuffix.org/)
+
+Flags
+  o -d: enable debug (set -x)
+  o -h: this help text
+  o -o out: specify an output file.
+    Default: <stdout>
+  o -i "domain [domain [...]]": domains to ignore and remove from the output.
+    Default: $_ignore
+
+The last argument is an optional list of inputs. Each input file is downloaded
+and sanitized and all domains are added to the output with all the correct tags.
+
+To save some disk space and processing by unbound(8), $_myname removes
+subdomains of domains that are tagged. As such, if "malware.tld" and
+"foo.malware.tld" are tagged as "bad", then "foo.malware.tld" will be removed
+from the output because "malware.tld" is a suffix to "foo.malware.tld" (and
+unbound(8) being a recursive resolver, it wouldn't care about subdomains such
+as "foo.malware.tld").
+This will not apply to e.g. "bar.legit.com" and "baz.legit.com" if
+"legit.com" is not tagged the same as "bar" and "baz".
+
+The "IP" parameter is optional and used for "ready-to-use" hosts(5) files. E.g.
+
+  bad!https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/dbl.txt
+      ^- this is a domain list, we don't specify an IP
+
+  nsfw!https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/hosts_nsfw.txt!0.0.0.0
+       ^- this is a host file where we disregard 0.0.0.0 to get domains
+
+The caret (^) and newline (\\n) can be used to seperate items.
+Its default value is:
+  $_input
+
+MAKE SURE YOU ARE ALLOWED TO USE THE LISTS IN YOUR SITUATION
+
+There are also a few domains that $_myname takes care of:
+  o localhost: this one is the most bizarre. Some badly written applications
+    WILL query our lying DNS resolver for 'localhost' and ignore
+    nsswitch.conf(5) (like, e.g. redis)
+  o We explicitly reject TLDs. If one of the input files contains a TLD, we will
+    ignore it: we intend to block bad domains, not the web in its entirety.
+
+There is also one domain that you (the operator) must take care of:
+  o use-application-dns.net: this one is a canary domain for DoH. It is used
+    by badly written software (Firefox) to check whether it should use DoH. This
+    defeats the ENTIRE FUCKING PURPOSE of DoH ANYWAY because my ISP could very
+    well intercept and modify that DNS request (made by the usual means) to
+    return NXDOMAIN, thus degrading Firefox to classic DNS queries. WHICH IS THE
+    EXACT SITUATION DoH WAS SUPPOSED TO PROTECT USERS FROM.
+
+EXAMPLES
+  In unbound.conf(5)
+
+  define-tag: "bad gambling nsfw home_whitelist"
+  # sane defaults
+  access-control: 0.0.0.0/0 deny
+
+  # 10.28.56.0/24 querying "bad" domains get a specific reply
+  #  no specifics for nsfw domains
+  #  using different A replies helps identify what went well/wrong
+  access-control-tag: 10.28.56.0/24 "bad"
+  access-control-tag-data: 10.28.56.0/24 "bad"  "A 127.0.56.1"
+
+  # 10.29.58.0/24 querying "bad or nsfw" domains get a specific reply, but we
+  # will answer truthfully for domains with the home_whitelist tag
+  access-control-tag: 10.29.58.0/24 "bad nsfw home_whitelist"
+  access-control-tag-action: 10.29.58.0/24 "home_whitelist" always_transparent
+  access-control-tag-data: 10.29.58.0/24 "bad"  "A 127.0.58.1"
+  access-control-tag-data: 10.29.58.0/24 "nsfw" "A 127.0.58.2"
+
+  # break (NXDOMAIN) use-application-dns.net
+  local-zone: use-application-dns.net static
+  # unbreak laposte.fr, because they are outsourcing core functionality;
+  local-zone-tag: cdn.tagcommander.com "home_whitelist"
+  local-zone:     cdn.tagcommander.com redirect
+  # NB: tagcommander.com ends up with the "bad" tag, but our setup above
+  # overrides that for 10.29.58.0/24
+
+  # The generated file is included after the rest
+  include: out.$_myname
+
+
+SEE ALSO
+  https://support.mozilla.org/en-US/kb/canary-domain-use-application-dnsnet
+  https://news.ycombinator.com/item?id=22414912
+  https://publicsuffix.org/
+  https://unbound.docs.nlnetlabs.nl/en/latest/topics/filtering/tags-views.html
+  unbound.conf(5)
+EOF
+}
+
+while getopts ":dhi:o:" _opt; do
+  case "$_opt" in
+    d) set -x                 ;;
+    h) __usage; exit 0        ;;
+    o) _output_file="$OPTARG" ;;
+    i) _ignore="$OPTARG"      ;;
+    *) __usage >&2 ; exit 1   ;;
+  esac
+done
+
+shift "$((OPTIND-1))"
+
+[ -n "$1" ] && _input="$1"
+
+# first choice is curl(1), should be OK for Linux
+if command -v curl >/dev/null 2>&1; then
+  __download () {
+    curl --compressed -sL "$1"
+  }
+# second is fetch(1), for FreeBSD
+elif command -v fetch >/dev/null 2>&1; then
+  __download () {
+    fetch -q -o - "$1"
+  }
+# last comes ftp(1), which does far more than its name implies (OpenBSD only)
+elif [ "$(uname -s)" = OpenBSD ] && command -v ftp >/dev/null 2>&1; then
+  __download () {
+    ftp -o - "$1"
+  }
+else
+  printf '%s\n' "Oh no! You don't seem to have curl(1) or fetch(1)" >&2
+  printf '%s\n' "I'm cowardly exiting" >&2
+  exit 4
+fi
+
+# If we're here, we're actually going to do something
+_temp_dir="$(mktemp -d -t "$(basename "$0").XXXXXX")"
+mkdir "$_temp_dir/tags"
+_temp_ack="$_temp_dir/acks"
+_ignore_regex="^($(echo "$_ignore" | tr ' ' '|'))$"
+_public_suffix="$_temp_dir/tlds"
+
+__cleanup () {
+  [ -d "$_temp_dir" ] && rm -fr "$_temp_dir"
+}
+
+trap __cleanup INT TERM
+
+# __add_hosts URL IP destination
+# put domains (without their final .) from URL in destination file, stripping
+# "IP"; this is used for input hosts(5) files
+__add_hosts () {
+  printf '# Original file at %s\n' "$1" >> "$_temp_ack"
+  __download "$1" | awk "/^$2 / "'{ print $2 }' | grep -Eo '.*[^\.]' >> "$3"
+}
+
+# __add_simple URL destination
+# put domains (without their final .) from URL in destination file
+# this is used for simple domain lists
+__add_simple () {
+  printf '# Original file at %s\n' "$1" >> "$_temp_ack"
+  # We only want the lines that are not comments, we remove the final dot on
+  # the line and we don't fail on empty files
+  __download "$1" | grep -e '^[^\#]' | grep -Eo '.*[^\.]' >> "$2" || true
+}
+
+__create_public_suffix () {
+  printf '# The public suffix list was used https://publicsuffix.org\n' >> "$_temp_ack"
+  __download "https://publicsuffix.org/list/public_suffix_list.dat" |
+   # This file's has a specific syntax: https://publicsuffix.org/list/
+   grep -vE '^(//|$|!)' | grep -Eo '[^(^\*\.)].+' | sort > "$_public_suffix"
+}
+
+__to_simple_usable_list () {
+  # We remove weird characters
+  tr -d '\r' < "$1" |
+  # We cast everything to lower-case
+  tr '[:upper:]' '[:lower:]' |
+  # We ignore lines with spaces or empty lines
+  grep -vE '( |^$|/)' |
+  # We ignore "localhost"; this is the single most problematic host ever.
+  # Many poorly configured programs will use the DNS to ask who is "localhost",
+  # instead of asking the true source in nsswitch.conf(5). This causes
+  # phenomenal clusterfucks.
+  grep -v '^localhost$' |
+  # Ignore domains in $_ignore
+  grep -vE "$_ignore_regex" |
+  sort -u > "$1".2
+  # Ignore lines that are a TLD or a public suffix
+  # comm(1) is insanely faster than any grep(1) or rg(1) here
+  comm -23 "$1".2 "$_public_suffix" |
+  # and sort by domain
+  rev | sort | rev > "$1"
+  rm "$1".2
+}
+
+__to_output () {
+  if [ -z "$_output_file" ]; then
+    cat -
+  else
+    if [ -e "$_output_file" ]; then
+      # just in case something goes wrong
+      # I wrote that script though. It shouldn't go wrong.
+      # Right...?
+      cp "$_output_file" "$_output_file".bak
+    fi
+    cat - > "$_output_file"
+  fi
+}
+
+__create_public_suffix
+
+# fill $_temp_dir with tagged files holding their list of domains
+printf '%s\n' "$_input" | tr '^' '\n' |
+ while IFS='!' read -r _tag _url _ip; do
+  if [ -n "$_ip" ]; then
+    __add_hosts  "$_url" "$_ip" "$_temp_dir/tags/$_tag"
+  else
+    __add_simple "$_url"        "$_temp_dir/tags/$_tag"
+  fi
+ done
+
+# Remove public suffixes from each tags/$_tag file
+for _tagged_domainlist in "$_temp_dir"/tags/*; do
+  __to_simple_usable_list "$_tagged_domainlist"
+done
+
+# Slim down domain lists, as they contain a LOT of duplicates for unbound
+# e.g.: www.malware.tld and malware.tld
+# The output file contains `domain tag` lines only
+for _tagged_domainlist in "$_temp_dir"/tags/*; do
+  awk -v tag="${_tagged_domainlist##*/}" \
+    'BEGIN { dom = ""; domregex="thisshouldntmatch" }
+     $0 !~ domregex { if(dom != "") { printf("%s %s\n", dom, tag) }; domregex=".*\\."$0; dom=$0 }
+     END { printf("%s %s\n", dom, tag) }' < "$_tagged_domainlist" > "$_tagged_domainlist".nodupes
+  mv "$_tagged_domainlist".nodupes "$_tagged_domainlist"
+done
+
+# create a single list with all `domain tag` pairs
+_dtst="$_temp_dir/domain_to_single_tag"
+sort "$_temp_dir"/tags/* > "$_dtst"
+
+# now we squash that list
+{ cat "$_temp_ack"
+  awk '$1 == domain { tags = tags " " $2 }
+       $1 != domain {
+         if (domain != "") {
+           printf("local-zone: %s redirect\nlocal-zone-tag: %s \"%s\"\n", domain, domain, tags)
+         }
+         domain = $1; tags = $2 }
+       END {
+         if (domain != "") {
+           printf("local-zone: %s redirect\nlocal-zone-tag: %s \"%s\"\n", domain, domain, tags)
+         }
+       }' < "$_dtst"
+} | __to_output
+
+__cleanup
