@@ -106,12 +106,12 @@ __cleanup () {
 trap __cleanup INT TERM
 
 __add_hosts () {
-  printf '# Original file at %s\n' "$1" >> "$_temp_ack"
+  printf '# Original file at %s (fetched on %s)\n' "$1" "$(date)" >> "$_temp_ack"
   __download "$1" | awk "/^$2 / "'{ print $2 }' >> "$_temp"
 }
 
 __add_simple () {
-  printf '# Original file at %s\n' "$1" >> "$_temp_ack"
+  printf '# Original file at %s (fetched on %s)\n' "$1" "$(date)" >> "$_temp_ack"
   # We only want the lines that are not comments, and we don't fail on empty files
   __download "$1" | grep -e '^[^\#]' >> "$_temp" || true
 }
