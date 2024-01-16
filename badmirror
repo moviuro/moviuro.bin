@@ -1,0 +1,34 @@
+#!/bin/sh
+
+_status="$(mktemp)"
+_today="$(date '+%Y-%m-%d')"
+# GNU date(1) magic -- also, not dealing with edge cases (1st of the month)
+_yesterday="$(date '+%Y-%m-%d' -d yesterday)"
+
+curl --silent --output "$_status" https://archlinux.org/mirrors/status/json/
+
+for _mirrorlist in $(awk -F '=' '/^Include/ { print $2 }' < /etc/pacman.conf |
+ sort -u); do
+  for _mirror in $(awk -F '=' '/^[^#]/ { gsub(/\$.*/, ""); print $2 }' < "$_mirrorlist"); do
+    #                                          ^^^^- replace /$repo/os/$arch
+    #                                                with /
+    _last_sync="$(jq --raw-output ".urls.[] | select(.url == \"$_mirror\" ).last_sync" < "$_status")"
+    case "$_last_sync" in
+      null)
+       tput setaf 1; echo "$_mirror is dead" >&2;
+       _ret="$((_ret+1))";;
+      "$_today"*|"$_yesterday"*)
+        : ;;
+      '')
+        tput sgr0; echo "$_mirror was not found (not an official mirror?)" >&2 ;;
+      *)
+        tput setaf 1;echo "$_mirror is out of date" >&2;
+        _ret="$((_ret+1))";;
+    esac
+  done
+done
+
+tput sgr0
+
+[ -f "$_status" ] && rm "$_status"
+exit "${_ret:-0}"
