@@ -7,6 +7,7 @@ ERR_MISSING_DEP=11
 ERR_BAD_USAGE=12
 ERR_BROKEN_DOWNLOAD=13
 ERR_TAG_ALREADY_PRESENT=14
+ERR_TAG_NOT_FOUND=15
 _myname="$(basename "$0")"
 
 __usage () {
@@ -17,6 +18,8 @@ $0 list [-l]
 Manage Glorious-Eggroll's custom proton versions.
 
 - get: download and extirp a version to the right location(s)
+  'latest' is an alias to the most recent release name in the list of published
+  releases
 - list: get a list of available versions.
   -l: only locally available versions
 EOH
@@ -67,7 +70,7 @@ __get_releases () {
 
 __do_get () {
   cd "$_tmpdir"
-  __get_releases
+  [ -r versions.json ] || __get_releases
   case "$1" in
     latest)
       # I didn't write that jq(1) code. Don't ask.
@@ -76,16 +79,23 @@ __do_get () {
        tail -n 1 |
        # we get a single line of sorted releases (the latest one)
        while IFS=',' read -r _date _tag; do
-         # bail if we already have a matching release in the
-         # compatibilitytools.d dir.
-         if [ -d "$OMELET_DEST/$_tag" ]; then
-           __die "$OMELET_DEST/$_tag already exists, nothing to do" $ERR_TAG_ALREADY_PRESENT
-         fi
-         jq -r --arg _tag "$_tag" '.[]|select(.tag_name == $_tag ).assets[]| [.browser_download_url, .name] | join(",")' < versions.json |
-          while IFS=',' read -r _url _name; do
-            # we download the assets for that release
-            curl --location --output "$_name" "$_url"
-          done
+         __do_get "$_tag"
+       done
+    ;;
+    *)
+      _tag="$1"
+      # bail if we already have a matching release in the
+      # compatibilitytools.d dir.
+      if [ -d "$OMELET_DEST/$_tag" ]; then
+        __die "$OMELET_DEST/$_tag already exists, nothing to do" $ERR_TAG_ALREADY_PRESENT
+      fi
+      if [ "$(jq -r --arg _tag "$_tag" '.[]|select(.tag_name == $_tag ).assets[]' < versions.json | wc -l)" -lt 1 ]; then
+        __die "Couldn't find any release named '$_tag' (it might just be too old and $0 can't deal with it)." $ERR_TAG_NOT_FOUND
+      fi
+      jq -r --arg _tag "$_tag" '.[]|select(.tag_name == $_tag ).assets[]| [.browser_download_url, .name] | join(",")' < versions.json |
+       while IFS=',' read -r _url _name; do
+         # we download the assets for that release
+         curl --location --output "$_name" "$_url"
        done
       find . -iname '*.sha*sum' |
        while IFS= read -r _f; do
@@ -99,8 +109,6 @@ __do_get () {
        while IFS= read -r _archive; do
          bsdtar xvf "$_archive" -C "$OMELET_DEST"
        done
-    ;;
-    *) :
     ;;
   esac
 }
