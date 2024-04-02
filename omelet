@@ -1,0 +1,115 @@
+#!/bin/sh
+
+# A manager for Glorious-Eggroll's custom proton versions
+# https://github.com/GloriousEggroll/proton-ge-custom/tags
+
+ERR_MISSING_DEP=11
+ERR_BAD_USAGE=12
+ERR_BROKEN_DOWNLOAD=13
+ERR_TAG_ALREADY_PRESENT=14
+_myname="$(basename "$0")"
+
+__usage () {
+  cat << EOH
+$0 get [latest|<version>]
+$0 list [-l]
+
+Manage Glorious-Eggroll's custom proton versions.
+
+- get: download and extirp a version to the right location(s)
+- list: get a list of available versions.
+  -l: only locally available versions
+EOH
+}
+
+__req () {
+  command -v "$1" >/dev/null 2>&1
+}
+
+__err () {
+  echo "$@" >&2
+}
+
+__die () {
+  __err "$1"
+  exit "${2:-10}"
+}
+
+for _dep in curl jq bsdtar; do
+  __req "$_dep" || __die "missing $_dep" $ERR_MISSING_DEP
+done
+
+if [ -z "$OMELET_DEST" ]; then
+  for _dest in \
+   ~/.var/app/com.valvesoftware.Steam/.local/share/Steam/compatibilitytools.d \
+   ; do
+    [ -d "$_dest" ] && OMELET_DEST="$_dest"
+  done
+fi
+
+## TODO: only create tmpdir if needed
+
+_tmpdir="$(mktemp -d -t "$_myname.XXXXXX")"
+
+__cleanup () {
+  [ -d "$_tmpdir" ] && rm -r "$_tmpdir"
+}
+
+trap __cleanup INT TERM
+
+__get_releases () {
+  curl --location \
+   --header "Accept: application/vnd.github+json" \
+   --header "X-GitHub-Api-Version: 2022-11-28" \
+   --output versions.json \
+   https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases
+}
+
+__do_get () {
+  cd "$_tmpdir"
+  __get_releases
+  case "$1" in
+    latest)
+      # I didn't write that jq(1) code. Don't ask.
+      jq -r '.[] | [.published_at, .tag_name] | join(",")' < versions.json |
+       sort |
+       tail -n 1 |
+       # we get a single line of sorted releases (the latest one)
+       while IFS=',' read -r _date _tag; do
+         # bail if we already have a matching release in the
+         # compatibilitytools.d dir.
+         if [ -d "$OMELET_DEST/$_tag" ]; then
+           __die "$OMELET_DEST/$_tag already exists, nothing to do" $ERR_TAG_ALREADY_PRESENT
+         fi
+         jq -r --arg _tag "$_tag" '.[]|select(.tag_name == $_tag ).assets[]| [.browser_download_url, .name] | join(",")' < versions.json |
+          while IFS=',' read -r _url _name; do
+            # we download the assets for that release
+            curl --location --output "$_name" "$_url"
+          done
+       done
+      find . -iname '*.sha*sum' |
+       while IFS= read -r _f; do
+         # shasum checks never hurt
+         case "$_f" in
+           *.sha512sum) sha512sum -c "$_f" || __die "broken download" $ERR_BROKEN_DOWNLOAD ;;
+           *.sha256sum) sha256sum -c "$_f" || __die "broken download" $ERR_BROKEN_DOWNLOAD ;;
+         esac
+       done
+      find . -iname '*.tar.gz' |
+       while IFS= read -r _archive; do
+         bsdtar xvf "$_archive" -C "$OMELET_DEST"
+       done
+    ;;
+    *) :
+    ;;
+  esac
+}
+
+case "$1" in
+  get) shift; __do_get "$@" ;;
+  list) shift; __do_list "$@" ;;
+  -h|help) __usage ; exit 0;;
+  *) __die "$(__usage)" $ERR_BAD_USAGE ;;
+esac
+
+__cleanup
