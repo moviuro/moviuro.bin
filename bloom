@@ -28,14 +28,14 @@ __magnet () {
 
 # We find absolute torrent links
 __abs_torrent () {
-  __download "$1" | grep -Eo 'href="[^"]+\.torrent' | grep -Eo '[^"]+\.torrent'
+  __download "$1" | grep -Eo 'href="?[^"]+\.torrent' | grep -Eo '[^"=]+\.torrent'
 }
 
 __root_torrent () {
   _domain="$(printf '%s\n' "$1" | grep -Eo 'https?://[^/]+')"
   __download "$1" |
-   grep -Eo 'href="[^"]+\.torrent' |
-   grep -Eo '[^"]+\.torrent' |
+   grep -Eo 'href="?[^"]+\.torrent' |
+   grep -Eo '[^"=]+\.torrent' |
    while read -r _root_link; do
      printf '%s/%s\n' "$_domain" "$_root_link"
    done
@@ -44,8 +44,8 @@ __root_torrent () {
 # We find relative links to the torrents and generate an absolute link
 __rel_torrent () {
   _page="$1"
-  __download "$_page" | grep -Eo 'href="[^"]+\.torrent' |
-   grep -Eo '[^"]+\.torrent' |
+  __download "$_page" | grep -Eo 'href="?[^"]+\.torrent' |
+   grep -Eo '[^"=]+\.torrent' |
     while read -r _rel_link; do
       printf '%s%s\n' "$_page" "$_rel_link"
     done
